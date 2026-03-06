@@ -1,0 +1,6 @@
+.git
+.gitignore
+node_modules
+server.out.log
+server.err.log
+start-local-server.cmd

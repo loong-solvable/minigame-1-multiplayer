@@ -1,145 +1,137 @@
 # 服务器部署上线指南
 
-## 1. 环境要求
+## 1. 推荐部署方式
 
-- Node.js `20+`，建议 `24.x`
-- Linux 服务器 1 台
-- 已开放 `80` / `443` 端口
-- 已准备好域名时，建议通过 Nginx 反向代理并启用 HTTPS
+这项目在你当前服务器环境里，推荐走 `Docker`，不要直接依赖宿主机的 Node。
 
-## 2. 上传代码并安装依赖
+原因：
 
-```bash
-mkdir -p /srv/dino-hole-online
-cd /srv/dino-hole-online
-# 上传项目文件到当前目录
-npm install
-```
+- 服务器是 `CentOS 7`
+- 宿主机 `Node` 只有 `16.20.2`
+- 宿主机 `git` 版本也较老
+- 现有业务已经跑在 Docker 里
+- `80` 端口已被 Docker 里的前端容器占用
 
-## 3. 本机验证
+因此最稳的做法是：
 
-```bash
-npm test
-PORT=3000 npm start
-```
+- 新服务也用 Docker 跑
+- 映射到 `3001`
+- 先直接通过 `http://服务器IP:3001` 做多人联测
 
-浏览器访问 `http://<服务器IP>:3000`。
-
-## 4. 生产启动
-
-项目是一个 Node 进程，同时提供：
-
-- 静态客户端页面
-- WebSocket 联机服务
-
-默认监听端口来自环境变量 `PORT`，未设置时为 `3000`。
-
-## 5. 使用 systemd 常驻运行
-
-创建 `/etc/systemd/system/dino-hole-online.service`：
-
-```ini
-[Unit]
-Description=Dino Hole Rampage Online
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/srv/dino-hole-online
-Environment=PORT=3000
-ExecStart=/usr/bin/npm start
-Restart=always
-RestartSec=3
-User=www-data
-Group=www-data
-
-[Install]
-WantedBy=multi-user.target
-```
-
-启动并设置开机自启：
+## 2. 从 GitHub 拉代码
 
 ```bash
-sudo systemctl daemon-reload
-sudo systemctl enable dino-hole-online
-sudo systemctl start dino-hole-online
-sudo systemctl status dino-hole-online
+cd ~
+git clone https://github.com/loong-solvable/minigame-1-multiplayer.git
+cd ~/minigame-1-multiplayer
+git rev-parse HEAD
 ```
 
-## 6. 使用 Nginx 反向代理
+## 3. 构建 Docker 镜像
 
-创建站点配置，例如 `/etc/nginx/sites-available/dino-hole-online.conf`：
+项目已自带：
 
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
+- `Dockerfile`
+- `.dockerignore`
 
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /ws {
-        proxy_pass http://127.0.0.1:3000/ws;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-启用配置：
+构建镜像：
 
 ```bash
-sudo ln -s /etc/nginx/sites-available/dino-hole-online.conf /etc/nginx/sites-enabled/dino-hole-online.conf
-sudo nginx -t
-sudo systemctl reload nginx
+cd ~/minigame-1-multiplayer
+sudo docker build -t minigame-1-multiplayer:latest .
 ```
 
-## 7. HTTPS
+## 4. 启动容器
 
-建议用 Certbot：
+服务器当前端口占用情况：
+
+- `80` 已占用
+- `3000` 已被现有后端容器占用
+- `3001` 可用于本项目
+
+启动命令：
 
 ```bash
-sudo apt update
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+sudo docker run -d \
+  --name minigame-1-multiplayer \
+  -p 3001:3000 \
+  --restart unless-stopped \
+  minigame-1-multiplayer:latest
 ```
 
-HTTPS 生效后，浏览器会自动通过 `wss://` 建立联机连接。
+说明：
 
-## 8. 上线检查清单
+- 容器内部监听 `3000`
+- 宿主机暴露 `3001`
 
-- `npm test` 通过
-- `systemctl status dino-hole-online` 正常
-- `nginx -t` 通过
-- 浏览器能打开首页
-- 两个浏览器窗口能创建 / 加入同一房间
-- 房主能开始对局
-- 对局结束后能再次开局
-
-## 9. 更新发布
+## 5. 验证服务
 
 ```bash
-cd /srv/dino-hole-online
-# 替换代码
-npm install
-npm test
-sudo systemctl restart dino-hole-online
+sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
+curl http://127.0.0.1:3001
 ```
+
+如果正常，外部可访问：
+
+```text
+http://54.165.178.190:3001
+```
+
+## 6. AWS 安全组
+
+如果外网打不开，需要在 AWS 安全组里放行：
+
+- 协议：`TCP`
+- 端口：`3001`
+- 来源：测试阶段可先 `0.0.0.0/0`
+
+## 7. 更新发布
+
+更新代码：
+
+```bash
+cd ~/minigame-1-multiplayer
+git pull
+```
+
+重新构建并替换容器：
+
+```bash
+sudo docker build -t minigame-1-multiplayer:latest .
+sudo docker rm -f minigame-1-multiplayer
+sudo docker run -d \
+  --name minigame-1-multiplayer \
+  -p 3001:3000 \
+  --restart unless-stopped \
+  minigame-1-multiplayer:latest
+```
+
+## 8. 日志查看
+
+```bash
+sudo docker logs -f minigame-1-multiplayer
+```
+
+## 9. 后续接入统一 Nginx
+
+当前不建议先动全局入口。
+
+因为：
+
+- 现有 Docker 前端容器已经占用 `80`
+- 宿主机还没有统一接管 `80/443`
+
+更稳的步骤应该是：
+
+1. 先让联机测试通过
+2. 再决定是否把当前 Docker Nginx 作为统一入口
+3. 或者把宿主机 Nginx 提到最外层，再把旧容器退到内网端口
+
+在没有域名和统一入口改造前，测试期直接访问 `:3001` 即可。
 
 ## 10. 故障排查
 
-- 页面打不开：先检查 `PORT` 对应进程是否监听
-- 页面能开但无法联机：重点检查 Nginx `/ws` 的 Upgrade 配置
-- 玩家频繁掉线：检查反向代理超时、服务器防火墙和公网质量
-- 更新后白屏：先确认 `index.html`、`styles.css`、`client/`、`assets/` 都已上传完整
+- 容器起不来：看 `sudo docker logs -f minigame-1-multiplayer`
+- 外网打不开：优先检查 AWS 安全组是否放行 `3001`
+- 服务没监听：看 `sudo ss -ltnp | grep 3001`
+- 页面打开但联机失败：通常是反代 `/ws` 未升级；如果当前直接访问 `:3001`，通常不会有这个问题
