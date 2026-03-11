@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "minigame-1-multiplayer",
   "version": "1.0.0",
   "private": true,
@@ -6,9 +6,20 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node smoke-test.js"
+    "test": "node smoke-test.js",
+    "prepare:mobile-web": "node scripts/build-mobile-web.js",
+    "apk:init": "npm run prepare:mobile-web && npx cap add android",
+    "apk:sync": "npm run prepare:mobile-web && npx cap sync android",
+    "apk:open": "npm run apk:sync && npx cap open android",
+    "apk:assemble:debug": "npm run apk:sync && cd android && gradlew.bat assembleDebug",
+    "apk:assemble:release": "npm run apk:sync && cd android && gradlew.bat assembleRelease"
   },
   "dependencies": {
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/cli": "^6.2.0",
+    "@capacitor/core": "^6.2.0"
   }
 }

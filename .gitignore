@@ -1,5 +1,13 @@
 node_modules/
 server.out.log
 server.err.log
+server-runtime.log
+server-stdout.log
+server-stderr.log
 .DS_Store
 Thumbs.db
+.gradle-user/
+.android-user/
+.tools/
+mobile-web/
+orgin/

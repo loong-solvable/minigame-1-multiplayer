@@ -1,0 +1,6 @@
+﻿# Copy to signing.properties and fill in real values.
+# storeFile can be relative to android/ directory, e.g. keystore/release.jks
+storeFile=keystore/release.jks
+storePassword=change_me_store_password
+keyAlias=release
+keyPassword=change_me_key_password

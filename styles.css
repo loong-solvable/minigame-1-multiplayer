@@ -169,6 +169,61 @@ input {
   box-shadow: 0 0 0 3px rgba(92, 225, 255, 0.16);
 }
 
+.serverHint {
+  margin: -4px 0 12px 0;
+  min-height: 18px;
+  font-size: 12px;
+  color: rgba(207, 233, 255, 0.8);
+}
+
+.networkStatus {
+  margin: -2px 0 12px 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  background: rgba(8, 15, 26, 0.58);
+  padding: 10px;
+  font-size: 12px;
+}
+
+.networkRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.networkRow + .networkRow {
+  margin-top: 6px;
+}
+
+#connStateText {
+  color: rgba(230, 238, 248, 0.9);
+}
+
+#connStateText[data-state="connecting"] {
+  color: #ffd682;
+}
+
+#connStateText[data-state="connected"] {
+  color: var(--good);
+}
+
+#connStateText[data-state="error"] {
+  color: var(--danger);
+}
+
+#connTargetText {
+  max-width: 58%;
+  overflow-wrap: anywhere;
+  color: rgba(207, 233, 255, 0.9);
+}
+
+.networkReason {
+  margin: 8px 0 0 0;
+  color: var(--danger);
+  line-height: 1.45;
+}
+
 .actions {
   display: flex;
   gap: 10px;
@@ -287,9 +342,116 @@ button:disabled {
   font-size: 13px;
 }
 
+.loadingOverlay {
+  z-index: 6;
+  background: rgba(5, 10, 16, 0.78);
+}
+
+.loadingCard {
+  width: min(430px, 92vw);
+  text-align: center;
+  padding: 24px 20px;
+}
+
+.loadingCard h2 {
+  margin: 0 0 8px 0;
+  font-size: clamp(28px, 5vw, 40px);
+  color: #d7f3ff;
+  text-shadow: 0 0 14px rgba(92, 225, 255, 0.45);
+}
+
+.loadingStatus {
+  margin: 0 0 14px 0;
+  color: rgba(236, 245, 255, 0.92);
+  font-size: 15px;
+}
+
+.loadingProgressTrack {
+  width: 100%;
+  height: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+
+.loadingProgressFill {
+  width: 0%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--good), var(--accent));
+  box-shadow: 0 0 16px rgba(92, 225, 255, 0.5);
+  transition: width 0.16s linear;
+}
+
+.loadingProgressText {
+  margin-top: 10px;
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 1px;
+}
+
+.mobileControls {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 3;
+  pointer-events: none;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
+}
+
+.joystickBase {
+  width: clamp(124px, 26vw, 168px);
+  height: clamp(124px, 26vw, 168px);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.34);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 60%),
+    rgba(8, 16, 27, 0.5);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.joystickStick {
+  width: clamp(52px, 12vw, 72px);
+  height: clamp(52px, 12vw, 72px);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  background:
+    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
+    rgba(27, 46, 71, 0.9);
+  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.28);
+  transform: translate(0, 0);
+  transition: transform 0.04s linear;
+}
+
 @media (max-width: 720px) {
   #hud {
     grid-template-columns: 1fr;
+    inset: env(safe-area-inset-top, 8px) 8px auto 8px;
+    gap: 6px;
+  }
+
+  .panel {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+
+  #leaderboard {
+    font-size: 14px;
+  }
+
+  #hint {
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 154px);
+    max-width: calc(100vw - 18px);
+    text-align: center;
+    font-size: 13px;
+    padding: 9px 12px;
   }
 
   .roomHeader {
@@ -303,5 +465,30 @@ button:disabled {
 
   button {
     width: 100%;
+    min-height: 46px;
+    font-size: 16px;
+  }
+
+  .playerSwatch {
+    width: 18px;
+    height: 18px;
+  }
+
+  .playerName,
+  .resultName {
+    font-size: 16px;
+  }
+
+  .playerMeta,
+  .resultMeta,
+  .serverHint {
+    font-size: 14px;
   }
 }
+
+@media (pointer: coarse) {
+  .mobileControls {
+    display: block;
+  }
+}
+

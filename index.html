@@ -17,7 +17,7 @@
     </div>
   </div>
 
-  <div id="hint">拖动屏幕或按住鼠标拖动，控制你的恐龙黑洞</div>
+  <div id="hint">按住并拖动屏幕控制你的黑洞移动</div>
 
   <div id="menuOverlay" class="overlay">
     <div class="card menuCard">
@@ -25,18 +25,35 @@
       <div class="eyebrow">多人联机模式</div>
       <h1>Dino Hole Rampage Online</h1>
       <p class="intro">
-        创建房间，分享 5 位房间码，让其他玩家加入后由房主开局。房间上限 8 人，开局后会自动补 bot 到 6 名参赛者。
+        创建房间后会生成 5 位房间码，其他玩家可加入并由房主开局。每个房间最多 8 人，开局后会补充 BOT。
       </p>
 
       <div id="landingSection">
         <label class="field">
           <span>昵称</span>
-          <input id="nameInput" maxlength="14" placeholder="输入你的名字" />
+          <input id="nameInput" maxlength="14" placeholder="输入你的名字">
         </label>
         <label class="field">
           <span>房间码</span>
-          <input id="roomCodeInput" maxlength="5" placeholder="输入房间码加入" />
+          <input id="roomCodeInput" maxlength="5" placeholder="输入 5 位房间码加入">
         </label>
+        <label class="field">
+          <span>Server URL (APK/远程联机)</span>
+          <input id="serverUrlInput" maxlength="120" placeholder="https://your-game-server.com">
+        </label>
+        <p id="serverUrlHint" class="serverHint"></p>
+        <div id="networkStatus" class="networkStatus">
+          <div class="networkRow">
+            <span>连接状态</span>
+            <strong id="connStateText" data-state="idle">未连接</strong>
+          </div>
+          <div class="networkRow">
+            <span>目标地址</span>
+            <code id="connTargetText">-</code>
+          </div>
+          <p id="connReasonText" class="networkReason hidden"></p>
+        </div>
+
         <div class="actions">
           <button id="createRoomBtn" class="primary">创建房间</button>
           <button id="joinRoomBtn">加入房间</button>
@@ -54,7 +71,7 @@
 
         <div class="roomMeta">
           <span id="hostStatus">你是房主</span>
-          <span id="phaseStatus">等待开局</span>
+          <span id="phaseStatus">等待开始</span>
         </div>
 
         <div id="playersList" class="playersList"></div>
@@ -81,6 +98,56 @@
     </div>
   </div>
 
+  <div id="loadingOverlay" class="overlay loadingOverlay hidden">
+    <div class="card loadingCard">
+      <h2>正在加载对局</h2>
+      <p id="loadingStatus" class="loadingStatus">正在准备资源...</p>
+      <div class="loadingProgressTrack">
+        <div id="loadingProgressFill" class="loadingProgressFill"></div>
+      </div>
+      <div id="loadingProgressText" class="loadingProgressText">0%</div>
+    </div>
+  </div>
+
+  <div id="mobileControls" class="mobileControls hidden">
+    <div id="joystickBase" class="joystickBase" aria-label="Movement joystick">
+      <div id="joystickStick" class="joystickStick"></div>
+    </div>
+  </div>
+
+  <script>
+  window.__appBoot = { moduleLoaded: false };
+
+  function showBootIssue(message) {
+    var errorEl = document.getElementById("menuError");
+    if (errorEl) errorEl.textContent = message;
+    var stateEl = document.getElementById("connStateText");
+    if (stateEl) stateEl.textContent = "错误";
+    var targetEl = document.getElementById("connTargetText");
+    if (targetEl) targetEl.textContent = "-";
+    var reasonEl = document.getElementById("connReasonText");
+    if (reasonEl) {
+      reasonEl.textContent = message;
+      reasonEl.classList.remove("hidden");
+    }
+  }
+
+  window.addEventListener("error", function (event) {
+    var msg = event && event.message ? event.message : "unknown";
+    showBootIssue("JS 运行错误: " + msg);
+  });
+
+  window.addEventListener("unhandledrejection", function (event) {
+    var reason = event && event.reason ? String(event.reason) : "unknown";
+    showBootIssue("Promise 异常: " + reason);
+  });
+
+  window.setTimeout(function () {
+    if (!window.__appBoot.moduleLoaded) {
+      showBootIssue("客户端模块加载失败，请重新安装最新 APK。");
+    }
+  }, 2500);
+  </script>
   <script type="module" src="client/main.js"></script>
 </body>
 </html>

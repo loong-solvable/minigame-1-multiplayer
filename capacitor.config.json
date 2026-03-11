@@ -1,0 +1,9 @@
+{
+  "appId": "com.newai.minigame",
+  "appName": "Dino Hole Rampage",
+  "webDir": "mobile-web",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}
