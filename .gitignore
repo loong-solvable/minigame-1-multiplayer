@@ -11,3 +11,10 @@ Thumbs.db
 .tools/
 mobile-web/
 orgin/
+android/.gradle/
+android/app/build/
+android/app/src/main/assets/
+android/capacitor-cordova-android-plugins/
+android/keystore/
+android/local.properties
+android/signing.properties

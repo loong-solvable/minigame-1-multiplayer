@@ -290,8 +290,8 @@ git checkout 2026-03-12-01
 - 默认服务端口来自 `PORT`，容器内默认是 `3000`
 - 如果你换了外部端口，比如映射成 `3001`，前端访问地址也要跟着这个端口
 - 服务器构建镜像时，必须能解析并访问 `registry.npmjs.org`；如果 DNS 不稳定，优先修复 DNS/出网，而不是反复重试上线
-- 如果通过域名和反代访问，优先保持“网页和 `/ws` 同域同端口”，这样客户端不用单独填写 Server URL
-- 如果 APK 远程联机，要在首页填写 `Server URL`
+- 如果通过域名和反代访问，优先保持“网页和 `/ws` 同域同端口”，这样网页端不需要额外配置
+- 当前 APK 已内置 `http://3.219.133.87`，如果服务器地址变化，必须同步修改 [client/main.js](/Users/tqy/Code/business/minigame-1-multiplayer/client/main.js) 里的 `EMBEDDED_SERVER_URL` 并重新打包 APK
 - 上线后先做 2 人联机实测，不要只看首页能打开
 
 ## 12. 上线验收

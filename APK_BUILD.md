@@ -1,5 +1,13 @@
 ﻿# APK 打包与签名发布说明（Capacitor + Android）
 
+当前 APK 已内置服务器地址：`http://3.219.133.87`
+
+含义：
+
+- 手机安装 APK 后，打开即可直接连接这台服务器
+- 不再需要用户手工填写 `Server URL`
+- 房间码仍然保留，用户通过房间码进入具体对局房间
+
 ## 1. 前置环境
 
 - Node.js 18+
@@ -10,6 +18,12 @@
 
 ```bash
 npm install
+```
+
+先检查 APK 构建环境是否齐全：
+
+```bash
+npm run apk:doctor
 ```
 
 ## 3. 初始化 Android 工程（只需一次）
@@ -47,8 +61,16 @@ npm run apk:assemble:debug
 
 1. 复制模板：
 
+Windows:
+
 ```bash
 copy android\signing.properties.example android\signing.properties
+```
+
+macOS / Linux:
+
+```bash
+cp android/signing.properties.example android/signing.properties
 ```
 
 2. 编辑 `android/signing.properties`：
@@ -61,6 +83,17 @@ keyPassword=你的key密码
 ```
 
 3. 将 keystore 放到 `android/keystore/release.jks`（或改为你的路径）。
+
+如果你还没有 keystore，可以自己生成一个：
+
+```bash
+keytool -genkeypair -v \
+  -keystore android/keystore/release.jks \
+  -alias release \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000
+```
 
 ### 6.2 使用环境变量
 
@@ -90,11 +123,22 @@ npm run apk:assemble:release
 
 ## 9. 联机服务器说明
 
-此 APK 仅封装前端资源，不内置 Node.js 游戏服。进入游戏后在首页填写：
+此 APK 仅封装前端资源，不内置 Node.js 游戏服。当前版本的连接方式是：
 
-- `Server URL (APK/远程联机)`（例如 `https://your-game-server.com`）
+- Web 网页端：默认连接打开当前网页的同源服务器
+- Android APK：默认连接内置服务器 `http://3.219.133.87`
 
 客户端会自动切换到对应 WebSocket（默认 `/ws`）。
+
+如果将来要更换 APK 内置服务器地址，修改这里：
+
+- [client/main.js](/Users/tqy/Code/business/minigame-1-multiplayer/client/main.js)
+
+搜索常量：
+
+```js
+const EMBEDDED_SERVER_URL = "http://3.219.133.87";
+```
 
 ## 10. 常见环境问题（JDK / SDK）
 
@@ -111,3 +155,25 @@ sdkmanager "platforms;android-34" "build-tools;34.0.0"
 ```
 
 并确保 `android/local.properties` 中 `sdk.dir` 指向正确 SDK 路径。
+
+### 10.3 macOS / Linux 构建脚本
+
+项目现在的 `npm run apk:assemble:debug` / `apk:assemble:release` 已兼容 macOS、Linux、Windows。
+
+如果你手工执行 Gradle：
+
+- Windows 用 `gradlew.bat`
+- macOS / Linux 用 `./gradlew`
+
+### 10.4 Android 明文流量
+
+当前内置服务器使用 `http://3.219.133.87`，不是 `https`。
+
+因此项目已经在 Android 配置里放开明文流量访问，否则新版本 Android 上 APK 可能安装成功但无法联网。
+
+对应配置：
+
+- [AndroidManifest.xml](/Users/tqy/Code/business/minigame-1-multiplayer/android/app/src/main/AndroidManifest.xml)
+- [network_security_config.xml](/Users/tqy/Code/business/minigame-1-multiplayer/android/app/src/main/res/xml/network_security_config.xml)
+
+更稳妥的长期方案仍然是给服务器配置域名和 HTTPS，然后把 `EMBEDDED_SERVER_URL` 切到 `https://你的域名`。

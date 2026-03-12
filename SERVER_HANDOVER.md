@@ -64,7 +64,7 @@ curl http://127.0.0.1:3001/healthz
 先看 `docker logs`，再看端口冲突和镜像构建是否包含正确代码。
 
 4. APK 无法连到服务器  
-确认首页填写的 `Server URL` 是否正确，且服务器启用了 HTTPS/WSS 或开放了正确端口。
+先确认内置服务器地址 `http://3.219.133.87` 仍然有效；如果服务器已经迁移，修改 [client/main.js](/Users/tqy/Code/business/minigame-1-multiplayer/client/main.js) 中的 `EMBEDDED_SERVER_URL` 后重新打包 APK。其次检查服务器是否仍对外提供 `/ws`，以及安全组/反代是否放通。
 
 ## 6. 交接纪律
 

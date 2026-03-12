@@ -33,7 +33,6 @@ const refs = {
   loadingStatus: document.getElementById("loadingStatus"),
   loadingProgressFill: document.getElementById("loadingProgressFill"),
   loadingProgressText: document.getElementById("loadingProgressText"),
-  serverUrlInput: document.getElementById("serverUrlInput"),
   serverUrlHint: document.getElementById("serverUrlHint"),
   connStateText: document.getElementById("connStateText"),
   connTargetText: document.getElementById("connTargetText"),
@@ -45,7 +44,7 @@ const refs = {
 
 const canvas = document.getElementById("game");
 const TOUCH_QUERY = "(hover: none), (pointer: coarse)";
-const SERVER_URL_STORAGE_KEY = "dino-hole-server-url";
+const EMBEDDED_SERVER_URL = "http://3.219.133.87";
 
 const state = {
   socket: null,
@@ -97,10 +96,8 @@ const renderer = createRenderer(canvas, refs, state);
 
 let lastTs = 0;
 refs.nameInput.value = localStorage.getItem("dino-hole-name") || "";
-state.serverUrl = loadServerUrl();
-if (refs.serverUrlInput) {
-  refs.serverUrlInput.value = state.serverUrl;
-}
+state.serverUrl = resolveServerUrl();
+localStorage.removeItem("dino-hole-server-url");
 renderServerHint();
 state.socketTarget = buildSocketUrl();
 setConnectionStatus("idle", "");
@@ -135,56 +132,36 @@ function normalizeServerUrl(raw) {
   return parsed.toString().replace(/\/$/, "");
 }
 
-function loadServerUrl() {
-  const fromQuery = normalizeServerUrl(getServerUrlFromQuery());
-  if (fromQuery) return fromQuery;
-  return normalizeServerUrl(localStorage.getItem(SERVER_URL_STORAGE_KEY) || "");
+function isNativeShell() {
+  if (window.Capacitor?.isNativePlatform?.()) {
+    return true;
+  }
+
+  if (["capacitor:", "file:"].includes(window.location.protocol)) {
+    return true;
+  }
+
+  return window.location.protocol === "http:" &&
+    window.location.hostname === "localhost" &&
+    !window.location.port;
 }
 
-function saveServerUrl() {
-  const raw = String(refs.serverUrlInput?.value || "").trim();
-  const normalized = normalizeServerUrl(raw);
-
-  if (raw && !normalized) {
-    setMenuError("服务器地址无效，例如：https://your-game-server.com");
-    return false;
-  }
-
-  state.serverUrl = normalized;
-  if (refs.serverUrlInput) {
-    refs.serverUrlInput.value = normalized;
-  }
-  if (normalized) {
-    localStorage.setItem(SERVER_URL_STORAGE_KEY, normalized);
-  } else {
-    localStorage.removeItem(SERVER_URL_STORAGE_KEY);
-  }
-
-  if (!state.roomCode) {
-    setMenuError("");
-  }
-  renderServerHint();
-  state.socketTarget = buildSocketUrl();
-  if (!state.socketOpen && !state.roomCode) {
-    setConnectionStatus("idle", "");
-  }
-  return true;
+function resolveServerUrl() {
+  const fromQuery = normalizeServerUrl(getServerUrlFromQuery());
+  if (fromQuery) return fromQuery;
+  return isNativeShell() ? EMBEDDED_SERVER_URL : "";
 }
 
 function renderServerHint() {
   if (!refs.serverUrlHint) return;
 
   if (state.serverUrl) {
-    refs.serverUrlHint.textContent = `当前服务器： ${state.serverUrl}`;
+    const label = isNativeShell() && state.serverUrl === EMBEDDED_SERVER_URL ? "已内置服务器" : "当前服务器";
+    refs.serverUrlHint.textContent = `${label}：${state.serverUrl}`;
     return;
   }
 
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    refs.serverUrlHint.textContent = "提示：APK 模式通常需要填写远程服务器地址。";
-    return;
-  }
-
-  refs.serverUrlHint.textContent = "默认使用当前网站作为游戏服务器。";
+  refs.serverUrlHint.textContent = "当前使用打开本页面的网站服务器。";
 }
 
 function clearConnectTimeout() {
@@ -215,6 +192,11 @@ function setConnectionStatus(status, reason = "") {
     refs.connReasonText.classList.toggle("hidden", !text);
   }
 }
+
+function getServerLabel() {
+  return state.serverUrl || `${window.location.protocol}//${window.location.host}`;
+}
+
 function buildSocketUrl() {
   if (!state.serverUrl) {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -248,7 +230,7 @@ function ensureSocket() {
     socket = new WebSocket(socketUrl);
   } catch {
     setConnectionStatus("error", "WebSocket 初始化失败，请检查协议和端口。");
-    setMenuError(`连接失败，请检查服务器地址：${state.serverUrl || "当前站点默认地址"}`);
+    setMenuError(`连接失败，请检查服务器是否可达：${getServerLabel()}`);
     return;
   }
 
@@ -260,7 +242,7 @@ function ensureSocket() {
     if (state.socket !== socket || socket.readyState === WebSocket.OPEN) return;
     state.pendingMessages = [];
     setConnectionStatus("error", `连接超时（5 秒）：${socketUrl}`);
-    setMenuError(`连接超时，请检查服务器是否可达：${state.serverUrl || `${window.location.protocol}//${window.location.host}`}`);
+    setMenuError(`连接超时，请检查服务器是否可达：${getServerLabel()}`);
     try {
       socket.close();
     } catch {
@@ -304,7 +286,7 @@ function ensureSocket() {
     if (hadPendingMessages) {
       state.pendingMessages = [];
       setConnectionStatus("error", detail);
-      setMenuError(`无法连接到服务器：${state.serverUrl || `${window.location.protocol}//${window.location.host}`}`);
+      setMenuError(`无法连接到服务器：${getServerLabel()}`);
       return;
     }
 
@@ -314,7 +296,7 @@ function ensureSocket() {
   socket.addEventListener("error", () => {
     if (state.roomCode) return;
     setConnectionStatus("error", "网络错误，请检查地址、局域网和防火墙。");
-    setMenuError(`无法连接到服务器：${state.serverUrl || `${window.location.protocol}//${window.location.host}`}`);
+    setMenuError(`无法连接到服务器：${getServerLabel()}`);
   });
 }
 function send(payload) {
@@ -395,10 +377,6 @@ function resetClientState() {
 }
 
 function createOrJoinRoom(isCreate) {
-  if (!saveServerUrl()) {
-    return;
-  }
-
   const name = saveName();
   if (!name) {
     setMenuError("请输入昵称。");
@@ -930,15 +908,6 @@ refs.roomCodeInput.addEventListener("keydown", (event) => {
   }
 });
 
-if (refs.serverUrlInput) {
-  refs.serverUrlInput.addEventListener("blur", saveServerUrl);
-  refs.serverUrlInput.addEventListener("keydown", (event) => {
-    if (event.key !== "Enter") return;
-    event.preventDefault();
-    saveServerUrl();
-  });
-}
-
 canvas.addEventListener("pointerdown", onPointerDown);
 canvas.addEventListener("pointermove", onPointerMove);
 canvas.addEventListener("pointerup", onPointerUp);
@@ -970,8 +939,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
-
 
 
 
