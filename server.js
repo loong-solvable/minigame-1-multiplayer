@@ -1313,10 +1313,56 @@ function handleMessage(app, ws, raw) {
   }
 }
 
-function createHttpHandler(rootDir) {
+function createHealthPayload(app, startedAt) {
+  let rooms = 0;
+  let lobbyRooms = 0;
+  let runningRooms = 0;
+  let finishedRooms = 0;
+  let humanPlayers = 0;
+  let connectedHumans = 0;
+  let bots = 0;
+
+  for (const room of app.rooms.values()) {
+    rooms += 1;
+    if (room.phase === "lobby") lobbyRooms += 1;
+    if (room.phase === "running") runningRooms += 1;
+    if (room.phase === "finished") finishedRooms += 1;
+
+    for (const player of room.players.values()) {
+      humanPlayers += 1;
+      if (player.connected) connectedHumans += 1;
+    }
+
+    bots += room.bots.length;
+  }
+
+  return {
+    ok: true,
+    uptimeSec: Math.floor((nowMs() - startedAt) / 1000),
+    rooms,
+    lobbyRooms,
+    runningRooms,
+    finishedRooms,
+    humanPlayers,
+    connectedHumans,
+    bots
+  };
+}
+
+function createHttpHandler(rootDir, app, startedAt) {
   return (req, res) => {
     const url = new URL(req.url, "http://localhost");
     let pathname = url.pathname;
+
+    if (pathname === "/health" || pathname === "/healthz") {
+      res.writeHead(200, {
+        "Content-Type": "application/json; charset=utf-8",
+        "Cache-Control": "no-store"
+      });
+      res.end(JSON.stringify(createHealthPayload(app, startedAt)));
+      return;
+    }
+
     if (pathname === "/") {
       pathname = "/index.html";
     }
@@ -1362,9 +1408,10 @@ function createAppServer(options = {}) {
     playerCounter: 1,
     tickHandle: null
   };
+  const startedAt = nowMs();
 
   const rootDir = path.resolve(__dirname);
-  const server = http.createServer(createHttpHandler(rootDir));
+  const server = http.createServer(createHttpHandler(rootDir, app, startedAt));
   const wss = new WebSocketServer({ noServer: true });
 
   server.on("upgrade", (req, socket, head) => {

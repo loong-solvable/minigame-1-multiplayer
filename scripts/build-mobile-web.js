@@ -1,10 +1,7 @@
 ﻿const fs = require("fs");
 const path = require("path");
 
-const root = path.resolve(__dirname, "..");
-const outDir = path.join(root, "mobile-web");
-
-const entries = [
+const DEFAULT_ENTRIES = [
   { src: "index.html", dest: "index.html" },
   { src: "styles.css", dest: "styles.css" },
   { src: "client", dest: "client" },
@@ -15,9 +12,16 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
-function copyEntry(entry) {
-  const srcPath = path.join(root, entry.src);
-  const destPath = path.join(outDir, entry.dest);
+function resolveOutputDir(projectRoot, outDir) {
+  if (!outDir) {
+    return path.join(projectRoot, "mobile-web");
+  }
+  return path.isAbsolute(outDir) ? outDir : path.join(projectRoot, outDir);
+}
+
+function copyEntry(projectRoot, outputDir, entry) {
+  const srcPath = path.join(projectRoot, entry.src);
+  const destPath = path.join(outputDir, entry.dest);
 
   if (!fs.existsSync(srcPath)) {
     throw new Error(`Missing source: ${entry.src}`);
@@ -33,15 +37,29 @@ function copyEntry(entry) {
   fs.copyFileSync(srcPath, destPath);
 }
 
-function buildMobileWeb() {
-  fs.rmSync(outDir, { recursive: true, force: true });
-  ensureDir(outDir);
+function buildMobileWeb(options = {}) {
+  const projectRoot = options.projectRoot
+    ? path.resolve(options.projectRoot)
+    : path.resolve(__dirname, "..");
+  const outputDir = resolveOutputDir(projectRoot, options.outDir);
+  const entries = options.entries || DEFAULT_ENTRIES;
+
+  fs.rmSync(outputDir, { recursive: true, force: true });
+  ensureDir(outputDir);
 
   for (const entry of entries) {
-    copyEntry(entry);
+    copyEntry(projectRoot, outputDir, entry);
   }
 
-  console.log("mobile-web prepared:", outDir);
+  return outputDir;
 }
 
-buildMobileWeb();
+if (require.main === module) {
+  const outputDir = buildMobileWeb();
+  console.log("mobile-web prepared:", outputDir);
+}
+
+module.exports = {
+  DEFAULT_ENTRIES,
+  buildMobileWeb
+};

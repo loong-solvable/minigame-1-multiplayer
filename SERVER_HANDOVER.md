@@ -1,152 +1,74 @@
-# 服务器交接总览（给新接手同学）
+# 服务器交接总览
 
-最后更新：2026-03-06  
-适用对象：新接手本项目的开发/运维
+最后更新：2026-03-12
 
-## 1. 本文档目的
+这份文档不再绑定某一台旧服务器的快照，而是作为你后续交接时可持续维护的模板。
 
-这份文档用于让新同学在不依赖口头沟通的情况下，快速完成：
+## 1. 交接时必须补齐的信息
 
-- 识别服务器现状
-- 正确发布版本
-- 快速定位常见故障
-- 安全回滚
+上线前或交接给他人前，请把下面信息更新完整：
 
-## 2. 已知基础环境（交接时快照）
+- 服务器公网 IP / 域名
+- 操作系统版本
+- Docker 版本
+- Git 版本
+- 实际使用的部署方式：Docker / 宿主机直跑
+- 实际使用的对外端口
+- 代码仓库地址
+- 当前线上提交号
+- 最近一次上线时间
 
-- 公网 IP：`54.165.178.190`
-- 操作系统：`CentOS 7 (Core)`
-- 架构：`x86_64`
-- 宿主机 Node：`v16.20.2`
-- 宿主机 npm：`8.19.4`
-- 宿主机 git：`1.8.3.1`
+## 2. 当前项目的推荐交付形态
 
-说明：宿主机环境较老，项目建议走 Docker，不建议直接宿主机跑 Node 服务。
+- 代码来源：GitHub 仓库拉取
+- 运行方式：Docker 优先
+- 健康检查：`/healthz`
+- 服务端口：容器内默认 `3000`
+- 对外端口：按服务器实际占用情况决定，例如 `3001`
 
-## 3. 全局服务形态（必须先理解）
+## 3. 新接手同学先做什么
 
-当前服务器是“多容器并行”形态，不是单宿主机 Nginx 统一入口：
+1. 先读 [DEPLOYMENT.md](/Users/tqy/Code/business/minigame-1-multiplayer/DEPLOYMENT.md)
+2. 确认服务器端口占用与安全组策略
+3. 执行一次 `curl http://127.0.0.1:<port>/healthz`
+4. 执行一次 2 人联机回归
+5. 记录当前 Git 提交号和镜像标签
 
-- 已有业务容器占用了关键端口（如 `80`、`3000`）
-- 本项目多人服务建议固定 `3001`
+## 4. 日常巡检命令
 
-结论：
-
-- 上线前先查端口，不要直接抢占 `80/3000`
-- 不要在未评估前贸然改全局入口层
-
-## 4. 本项目交付范围
-
-项目目录建议：
-
-```bash
-/data/project/minigame-1-multiplayer
-```
-
-项目内容：
-
-- Node.js 服务端（HTTP + WebSocket）
-- 前端静态资源
-- Dockerfile（可直接构建部署）
-- 基础联机烟测脚本
-
-## 5. 当前关键功能状态
-
-已实现并应重点回归：
-
-- 房间创建/加入/开局/结算
-- 控制点占领与炮台支援
-- 对局倒计时（含顶部大号计时）
-- 死亡 3 秒复活大动画
-- 加载进度遮罩
-- 复制房间码（HTTP 环境降级兼容）
-
-## 6. 发布标准流程（建议直接照做）
+Docker 部署：
 
 ```bash
-cd /data/project/minigame-1-multiplayer
-git pull
-sudo docker build -t minigame-1-multiplayer:latest .
-sudo docker rm -f minigame-1-multiplayer
-sudo docker run -d \
-  --name minigame-1-multiplayer \
-  -p 3001:3000 \
-  --restart unless-stopped \
-  minigame-1-multiplayer:latest
-```
-
-发布后验收：
-
-```bash
-sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
-curl -I http://127.0.0.1:3001
+sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 sudo docker logs --tail 100 minigame-1-multiplayer
+curl http://127.0.0.1:3001/healthz
 ```
 
-## 7. 回滚标准流程
-
-建议每次发布都保留镜像版本标签：
+宿主机直跑：
 
 ```bash
-sudo docker build -t minigame-1-multiplayer:2026-03-06-1 .
+ps -ef | grep node
+ss -ltnp | grep 3001
+curl http://127.0.0.1:3001/healthz
 ```
 
-故障回滚：
+## 5. 常见故障
 
-```bash
-sudo docker rm -f minigame-1-multiplayer
-sudo docker run -d \
-  --name minigame-1-multiplayer \
-  -p 3001:3000 \
-  --restart unless-stopped \
-  minigame-1-multiplayer:2026-03-06-1
-```
+1. 首页可访问，但无法联机  
+优先检查 `/ws` 是否被反向代理正确转发，以及是否透传 Upgrade 头。
 
-## 8. 日常巡检命令
+2. 内网可访问，公网不可访问  
+优先检查安全组、防火墙、负载均衡或反向代理。
 
-```bash
-whoami
-pwd
-cat /etc/os-release
-node -v
-npm -v
-git --version
-sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
-sudo ss -ltnp | grep -E ':80|:443|:3000|:3001|:5432|:6379'
-```
+3. 容器状态不断重启  
+先看 `docker logs`，再看端口冲突和镜像构建是否包含正确代码。
 
-## 9. 常见故障与处理
+4. APK 无法连到服务器  
+确认首页填写的 `Server URL` 是否正确，且服务器启用了 HTTPS/WSS 或开放了正确端口。
 
-1. 容器起不来  
-先看 `docker logs`，再看端口冲突。
+## 6. 交接纪律
 
-2. 页面可访问但联机失败  
-如果走反代，检查 WebSocket 升级头是否透传。
-
-3. 内网可访问，公网不可访问  
-优先检查云安全组是否放行 `3001/tcp`。
-
-4. 复制房间码异常  
-确认前端版本为最新，已包含 Clipboard 降级方案。
-
-## 10. 变更纪律
-
-- 每次发布记录：时间、提交号、操作人、结果
-- 先发测试再发正式
-- 禁止在未确认影响面的情况下改 `80/443` 入口
-- 禁止无回滚方案直接替换线上容器
-
-## 11. 新人接手第一天建议
-
-1. 跑一遍巡检命令，确认现网全貌  
-2. 按文档完成一次“空变更重发”演练  
-3. 跑一次多人联机回归（2 人 + 1 局）  
-4. 验证回滚命令可执行  
-5. 补齐自己的交接备注
-
-## 12. 关联文档
-
-- 部署细节：`DEPLOYMENT.md`
-- 玩家/测试操作：`PLAY_GUIDE.md`
-- 接手待办清单：`TRANSFER_CHECKLIST.md`
-- 项目入口说明：`README.md`
+- 每次上线必须记录 Git 提交号或 tag
+- 每次上线必须保留回滚目标
+- 不要口头交接仓库地址、端口、域名，必须写进文档
+- 如果更换了服务器或域名，第一时间更新 `DEPLOYMENT.md` 和本文件

@@ -4,7 +4,7 @@
 
 ## 1. 快速导航
 
-- 部署文档：`DEPLOYMENT.md`
+- GitHub 上传、服务器拉取与启动：`DEPLOYMENT.md`
 - 游玩与测试：`PLAY_GUIDE.md`
 - 服务器交接总览：`SERVER_HANDOVER.md`
 - 交接执行清单：`TRANSFER_CHECKLIST.md`
@@ -33,12 +33,20 @@ npm start
 npm test
 ```
 
+`npm test` 现在会先校验 `mobile-web/` 生成链，确保 APK/Web 打包输入始终和根目录源码一致，再执行联机烟测。
+
 ## 5. 线上部署建议
 
 优先 Docker，避免宿主机 Node 版本差异。  
 生产/测试服务器的完整上线步骤见 `DEPLOYMENT.md`。
 
-## 6. 当前已实现的关键体验
+## 6. 生成目录约定
+
+- `mobile-web/` 是由 `npm run prepare:mobile-web` 生成的，不要手工修改，也不要从其他目录直接拷贝旧副本进来。
+- `android/app/src/main/assets/public`、`android/app/src/main/assets/capacitor*.json`、`android/app/src/main/res/xml/config.xml`、`android/capacitor-cordova-android-plugins/` 都属于 `apk:sync` 生成物。
+- 需要清理本地生成垃圾时，先执行 `npm run clean:generated:dry` 预览，再执行 `npm run clean:generated`。
+
+## 7. 当前已实现的关键体验
 
 - 顶部大号对局倒计时
 - 死亡 3 秒复活大动画

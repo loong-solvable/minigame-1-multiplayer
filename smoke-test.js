@@ -65,8 +65,11 @@ async function main() {
   let bob;
 
   try {
+    const health = await fetch(`${baseUrl}/healthz`).then((res) => res.json());
     const indexHtml = await fetch(`${baseUrl}/`).then((res) => res.text());
     const clientJs = await fetch(`${baseUrl}/client/main.js`).then((res) => res.text());
+    assert.strictEqual(health.ok, true);
+    assert.strictEqual(health.rooms, 0);
     assert(indexHtml.includes("Dino Hole Rampage Online"));
     assert(indexHtml.includes("loadingOverlay"));
     assert(clientJs.includes("createRenderer"));
@@ -130,8 +133,11 @@ async function main() {
       bob.waitFor((message) => message.type === "match_over", 8000)
     ]);
 
+    const healthAfterMatch = await fetch(`${baseUrl}/healthz`).then((res) => res.json());
     assert(matchOver[0].ranking.length >= 4);
     assert(matchOver[1].ranking.length >= 4);
+    assert(healthAfterMatch.rooms >= 1);
+    assert(healthAfterMatch.humanPlayers >= 2);
     console.log("Smoke test passed");
   } finally {
     if (alice) await alice.close();

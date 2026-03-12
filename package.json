@@ -3,10 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "description": "Dino Hole Rampage multiplayer server and client",
+  "engines": {
+    "node": ">=18"
+  },
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node smoke-test.js",
+    "test": "npm run verify:mobile-web && node smoke-test.js",
+    "verify:mobile-web": "node scripts/verify-mobile-web.js",
+    "clean:generated": "node scripts/clean-generated.js --apply",
+    "clean:generated:dry": "node scripts/clean-generated.js",
     "prepare:mobile-web": "node scripts/build-mobile-web.js",
     "apk:init": "npm run prepare:mobile-web && npx cap add android",
     "apk:sync": "npm run prepare:mobile-web && npx cap sync android",

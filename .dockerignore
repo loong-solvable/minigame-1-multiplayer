@@ -4,3 +4,12 @@ node_modules
 server.out.log
 server.err.log
 start-local-server.cmd
+mobile-web
+orgin
+.gradle-user
+.android-user
+.tools
+android/.gradle
+android/app/build
+android/capacitor-cordova-android-plugins
+android/app/src/main/assets

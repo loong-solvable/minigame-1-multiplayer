@@ -24,6 +24,8 @@ npm run apk:init
 npm run apk:sync
 ```
 
+不要从别的目录手工复制 `mobile-web/` 或 `android/app/src/main/assets/public`。这两处都应由 `prepare:mobile-web` / `apk:sync` 重新生成。
+
 ## 5. 调试包构建（无需签名配置）
 
 ```bash
