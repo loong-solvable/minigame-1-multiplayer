@@ -1367,7 +1367,14 @@ function createHttpHandler(rootDir, app, startedAt) {
       pathname = "/index.html";
     }
 
-    const decoded = decodeURIComponent(pathname);
+    let decoded;
+    try {
+      decoded = decodeURIComponent(pathname);
+    } catch {
+      res.writeHead(400, { "Content-Type": "text/plain; charset=utf-8" });
+      res.end("Bad request");
+      return;
+    }
     const safePath = path
       .normalize(decoded)
       .replace(/^(\.\.[/\\])+/, "")
@@ -1440,8 +1447,13 @@ function createAppServer(options = {}) {
   });
 
   function start(port = config.port) {
-    return new Promise((resolve) => {
-      server.listen(port, () => {
+    return new Promise((resolve, reject) => {
+      const onError = (error) => {
+        server.off("listening", onListening);
+        reject(error);
+      };
+      const onListening = () => {
+        server.off("error", onError);
         const address = server.address();
         app.tickHandle = setInterval(() => {
           for (const room of app.rooms.values()) {
@@ -1451,7 +1463,11 @@ function createAppServer(options = {}) {
         resolve({
           port: typeof address === "object" && address ? address.port : port
         });
-      });
+      };
+
+      server.once("error", onError);
+      server.once("listening", onListening);
+      server.listen(port);
     });
   }
 
@@ -1477,6 +1493,9 @@ if (require.main === module) {
   const instance = createAppServer();
   instance.start().then(({ port }) => {
     console.log(`Multiplayer server listening on http://0.0.0.0:${port}`);
+  }).catch((error) => {
+    console.error("Failed to start multiplayer server:", error);
+    process.exitCode = 1;
   });
 }
 

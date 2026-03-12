@@ -1,4 +1,5 @@
 const assert = require("assert");
+const http = require("http");
 const { WebSocket } = require("ws");
 const { createAppServer } = require("./server");
 
@@ -68,8 +69,32 @@ async function main() {
     const health = await fetch(`${baseUrl}/healthz`).then((res) => res.json());
     const indexHtml = await fetch(`${baseUrl}/`).then((res) => res.text());
     const clientJs = await fetch(`${baseUrl}/client/main.js`).then((res) => res.text());
+    const badRequest = await new Promise((resolve, reject) => {
+      const request = http.request(
+        {
+          hostname: "127.0.0.1",
+          port,
+          path: "/%E0%A4%A",
+          method: "GET"
+        },
+        (response) => {
+          let raw = "";
+          response.setEncoding("utf8");
+          response.on("data", (chunk) => {
+            raw += chunk;
+          });
+          response.on("end", () => {
+            resolve({ statusCode: response.statusCode, body: raw });
+          });
+        }
+      );
+      request.on("error", reject);
+      request.end();
+    });
     assert.strictEqual(health.ok, true);
     assert.strictEqual(health.rooms, 0);
+    assert.strictEqual(badRequest.statusCode, 400);
+    assert.strictEqual(badRequest.body, "Bad request");
     assert(indexHtml.includes("Dino Hole Rampage Online"));
     assert(indexHtml.includes("loadingOverlay"));
     assert(clientJs.includes("createRenderer"));
