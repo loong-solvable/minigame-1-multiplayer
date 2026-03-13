@@ -1,4 +1,3 @@
-import { ScreenOrientation } from "@capacitor/screen-orientation";
 import { WORLD, clamp, dist2, lerp, lerpAngle } from "./constants.js";
 import { createRenderer } from "./render.js";
 
@@ -193,6 +192,10 @@ function canReturnToMainPage() {
   return !!state.roomCode;
 }
 
+function getScreenOrientationPlugin() {
+  return window.Capacitor?.Plugins?.ScreenOrientation || null;
+}
+
 function getDesiredOrientationLock() {
   return state.phase === "running" || state.phase === "finished" ? "landscape" : "portrait";
 }
@@ -202,8 +205,11 @@ async function syncScreenOrientation(force = false) {
   const desired = getDesiredOrientationLock();
   if (!force && state.orientationLock === desired) return;
 
+  const plugin = getScreenOrientationPlugin();
+  if (!plugin?.lock) return;
+
   try {
-    await ScreenOrientation.lock({ orientation: desired });
+    await plugin.lock({ orientation: desired });
     state.orientationLock = desired;
   } catch {
     // Ignore orientation lock failures in unsupported environments.
@@ -922,7 +928,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
 
 
 
