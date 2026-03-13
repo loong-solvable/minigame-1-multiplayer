@@ -630,43 +630,72 @@ export function createRenderer(canvas, refs, state) {
       if (self.effects?.magnetMs > 0) effects.push(`Magnet ${(self.effects.magnetMs / 1000).toFixed(1)}s`);
       if (self.effects?.shieldMs > 0) effects.push(`Shield ${(self.effects.shieldMs / 1000).toFixed(1)}s`);
       refs.statsEl.innerHTML =
-        `<strong style="color:#5ce1ff">Dino Hole Rampage Online</strong><br>` +
-        `房间: <strong>${state.roomCode || "-----"}</strong>  对局时间: <strong style="color:#9cff68">${mm}:${ss}</strong><br>` +
-        `Lv: <strong>${self.level}</strong>  质量: <strong>${Math.floor(self.displayMass)}</strong><br>` +
-        `得分: <strong>${self.score}</strong>  击败: <strong>${self.kills}</strong><br>` +
-        `状态: <strong style="color:${self.alive ? "#ffd95f" : "#ff7c7c"}">${self.alive ? "在线战斗中" : `重生 ${(self.respawnMs / 1000).toFixed(1)}s`}</strong><br>` +
-        `效果: ${effects.length ? effects.join(" | ") : "无"}`;
+        `<div class="hudStats">` +
+        `<div class="hudRow">` +
+        `<span class="hudChip">房间 ${state.roomCode || "-----"}</span>` +
+        `<span class="hudChip hudChipAccent">${mm}:${ss}</span>` +
+        `<span class="hudChip">Lv.${self.level}</span>` +
+        `<span class="hudChip">质量 ${Math.floor(self.displayMass)}</span>` +
+        `</div>` +
+        `<div class="hudRow">` +
+        `<span>得分 <strong>${self.score}</strong></span>` +
+        `<span>击败 <strong>${self.kills}</strong></span>` +
+        `<span>状态 <strong class="${self.alive ? "hudAccentText" : "hudDangerText"}">${self.alive ? "战斗中" : `重生 ${(self.respawnMs / 1000).toFixed(1)}s`}</strong></span>` +
+        `</div>` +
+        `${effects.length ? `<div class="hudEffects">效果 ${effects.join(" · ")}</div>` : ""}` +
+        `</div>`;
     } else {
-      refs.statsEl.innerHTML = `<strong style="color:#5ce1ff">Dino Hole Rampage Online</strong><br>创建或加入房间，等待房主开局。`;
+      refs.statsEl.innerHTML =
+        `<div class="hudStats">` +
+        `<div class="hudTitle">Dino Hole Rampage Online</div>` +
+        `<div class="hudRow"><span>创建或加入房间，等待房主开局。</span></div>` +
+        `</div>`;
     }
 
-    let boardText = "";
-    state.ranking.slice(0, 5).forEach((row, index) => {
-      const marker = row.id === state.playerId ? ">> " : "   ";
-      boardText += `${index + 1}. ${marker}${row.name}${row.isBot ? " [BOT]" : ""}  ${row.score}\n`;
-    });
-    refs.boardEl.textContent = boardText.trim();
+    const topRows = state.ranking.slice(0, 4);
+    const selfRow = state.ranking.find((row) => row.id === state.playerId);
+    const boardRows = selfRow && !topRows.some((row) => row.id === selfRow.id)
+      ? [...topRows, selfRow]
+      : topRows;
+
+    refs.boardEl.innerHTML = boardRows.map((row) => {
+      const rank = state.ranking.findIndex((entry) => entry.id === row.id) + 1;
+      return `
+        <div class="boardEntry${row.id === state.playerId ? " boardEntrySelf" : ""}">
+          <span class="boardRank">${rank}</span>
+          <span class="boardName">${row.name}${row.isBot ? " [BOT]" : ""}${row.id === state.playerId ? " · 你" : ""}</span>
+          <span class="boardScore">${row.score}</span>
+        </div>
+      `;
+    }).join("");
   }
 
   function updateHint() {
     if (!state.roomCode) {
+      refs.hintEl.classList.remove("hintFaded", "hintAlert");
       refs.hintEl.textContent = "输入昵称，创建房间或输入房间码加入";
       return;
     }
     if (state.phase !== "running") {
+      refs.hintEl.classList.remove("hintFaded", "hintAlert");
       refs.hintEl.textContent = state.playerId === state.hostId ? "分享房间码并点击开始对局" : "等待房主开始对局";
       return;
     }
     const self = state.visualPlayers.get(state.playerId) || null;
     if (!self) {
+      refs.hintEl.classList.remove("hintFaded", "hintAlert");
       refs.hintEl.textContent = "等待服务器同步中";
       return;
     }
     if (!self.alive) {
+      refs.hintEl.classList.remove("hintFaded");
+      refs.hintEl.classList.add("hintAlert");
       refs.hintEl.textContent = `你已被击败，将在 ${(self.respawnMs / 1000).toFixed(1)} 秒后重生`;
       return;
     }
-    refs.hintEl.textContent = "按住并拖动控制恐龙黑洞，吃资源、抢拾取、击败对手";
+    refs.hintEl.classList.remove("hintAlert");
+    refs.hintEl.classList.toggle("hintFaded", state.runningStartedAt > 0 && performance.now() - state.runningStartedAt >= 5000);
+    refs.hintEl.textContent = "按住并拖动屏幕任意位置即可改变行进方向";
   }
 
   function frame(dt) {

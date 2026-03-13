@@ -39,10 +39,11 @@ input {
 
 #hud {
   position: fixed;
-  inset: env(safe-area-inset-top, 10px) 10px auto 10px;
+  inset: calc(env(safe-area-inset-top, 0px) + 8px) 8px auto 8px;
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) minmax(136px, 24vw);
+  align-items: start;
+  gap: 6px;
   z-index: 2;
   pointer-events: none;
 }
@@ -50,32 +51,143 @@ input {
 .panel {
   background: var(--panel);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
-  backdrop-filter: blur(4px);
-  padding: 8px 10px;
-  font-size: 14px;
-  line-height: 1.4;
+  border-radius: 14px;
+  backdrop-filter: blur(6px);
+  padding: 7px 9px;
+  font-size: 12px;
+  line-height: 1.25;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.statsPanel {
+  min-width: 0;
+}
+
+.boardPanel {
+  min-width: 0;
+  justify-self: end;
+}
+
+.boardHeader {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: rgba(227, 240, 255, 0.72);
+}
+
+.hudStats {
+  display: grid;
+  gap: 5px;
+}
+
+.hudTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+}
+
+.hudRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px 8px;
+}
+
+.hudChip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+.hudChipAccent {
+  background: rgba(156, 255, 104, 0.14);
+  color: var(--good);
+}
+
+.hudAccentText {
+  color: var(--accent);
+}
+
+.hudDangerText {
+  color: var(--danger);
+}
+
+.hudEffects {
+  color: rgba(223, 237, 255, 0.84);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 #leaderboard {
   margin-top: 4px;
-  font-size: 13px;
-  white-space: pre-line;
+  display: grid;
+  gap: 4px;
+}
+
+.boardEntry {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 3px 0;
+  color: rgba(231, 240, 250, 0.86);
+}
+
+.boardEntrySelf {
+  color: #ffffff;
+}
+
+.boardRank {
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.boardName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boardScore {
+  font-weight: 800;
+  color: var(--good);
 }
 
 #hint {
   position: fixed;
   left: 50%;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
   transform: translateX(-50%);
   background: rgba(0, 0, 0, 0.45);
-  padding: 8px 12px;
+  padding: 6px 11px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  font-size: 13px;
+  font-size: 12px;
+  max-width: min(92vw, 520px);
+  text-align: center;
   pointer-events: none;
   z-index: 2;
+  transition: opacity 1.2s ease, transform 1.2s ease;
+}
+
+#hint.hintFaded {
+  opacity: 0;
+  transform: translateX(-50%) translateY(10px);
+}
+
+#hint.hintAlert {
+  background: rgba(84, 16, 20, 0.64);
+  border-color: rgba(255, 124, 124, 0.34);
 }
 
 .overlay {
@@ -392,66 +504,49 @@ button:disabled {
   letter-spacing: 1px;
 }
 
-.mobileControls {
-  position: fixed;
-  inset: auto 0 0 0;
-  z-index: 3;
-  pointer-events: none;
-  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 16px) 16px;
+.backConfirmOverlay {
+  z-index: 7;
 }
 
-.joystickBase {
-  width: clamp(124px, 26vw, 168px);
-  height: clamp(124px, 26vw, 168px);
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.34);
-  background:
-    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0) 60%),
-    rgba(8, 16, 27, 0.5);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.34);
-  backdrop-filter: blur(3px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
-  touch-action: none;
+.confirmCard {
+  width: min(360px, 92vw);
+  text-align: center;
 }
 
-.joystickStick {
-  width: clamp(52px, 12vw, 72px);
-  height: clamp(52px, 12vw, 72px);
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.45);
-  background:
-    radial-gradient(circle at 35% 25%, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0)),
-    rgba(27, 46, 71, 0.9);
-  box-shadow: 0 8px 14px rgba(0, 0, 0, 0.28);
-  transform: translate(0, 0);
-  transition: transform 0.04s linear;
+.confirmCard h2 {
+  margin: 0 0 10px 0;
+  font-size: clamp(24px, 4vw, 32px);
+  color: #d7f3ff;
+}
+
+.confirmText {
+  margin: 0 0 18px 0;
+  color: rgba(236, 245, 255, 0.92);
+  line-height: 1.5;
 }
 
 @media (max-width: 720px) {
   #hud {
-    grid-template-columns: 1fr;
-    inset: env(safe-area-inset-top, 8px) 8px auto 8px;
+    grid-template-columns: minmax(0, 1fr) minmax(124px, 34vw);
+    inset: calc(env(safe-area-inset-top, 0px) + 6px) 6px auto 6px;
     gap: 6px;
   }
 
   .panel {
-    font-size: 15px;
-    padding: 10px 12px;
+    font-size: 11px;
+    padding: 6px 8px;
   }
 
-  #leaderboard {
-    font-size: 14px;
+  .hudChip {
+    min-height: 20px;
+    padding: 1px 6px;
   }
 
   #hint {
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 154px);
-    max-width: calc(100vw - 18px);
-    text-align: center;
-    font-size: 13px;
-    padding: 9px 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 8px);
+    max-width: calc(100vw - 20px);
+    font-size: 11px;
+    padding: 6px 10px;
   }
 
   .roomHeader {
@@ -483,12 +578,6 @@ button:disabled {
   .resultMeta,
   .serverHint {
     font-size: 14px;
-  }
-}
-
-@media (pointer: coarse) {
-  .mobileControls {
-    display: block;
   }
 }
 

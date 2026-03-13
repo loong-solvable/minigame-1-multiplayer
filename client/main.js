@@ -29,6 +29,9 @@ const refs = {
   resultBoard: document.getElementById("resultBoard"),
   rematchBtn: document.getElementById("rematchBtn"),
   leaveAfterMatchBtn: document.getElementById("leaveAfterMatchBtn"),
+  backConfirmOverlay: document.getElementById("backConfirmOverlay"),
+  stayInGameBtn: document.getElementById("stayInGameBtn"),
+  returnHomeBtn: document.getElementById("returnHomeBtn"),
   loadingOverlay: document.getElementById("loadingOverlay"),
   loadingStatus: document.getElementById("loadingStatus"),
   loadingProgressFill: document.getElementById("loadingProgressFill"),
@@ -36,14 +39,10 @@ const refs = {
   serverUrlHint: document.getElementById("serverUrlHint"),
   connStateText: document.getElementById("connStateText"),
   connTargetText: document.getElementById("connTargetText"),
-  connReasonText: document.getElementById("connReasonText"),
-  mobileControls: document.getElementById("mobileControls"),
-  joystickBase: document.getElementById("joystickBase"),
-  joystickStick: document.getElementById("joystickStick")
+  connReasonText: document.getElementById("connReasonText")
 };
 
 const canvas = document.getElementById("game");
-const TOUCH_QUERY = "(hover: none), (pointer: coarse)";
 const EMBEDDED_SERVER_URL = "http://3.219.133.87";
 
 const state = {
@@ -70,6 +69,7 @@ const state = {
   assetLoadProgress: 0,
   hasSnapshot: false,
   loadingProgress: 0,
+  runningStartedAt: 0,
   matchDurationMs: 0,
   timeLeftMs: 0,
   timeLeftSyncAt: performance.now(),
@@ -77,16 +77,7 @@ const state = {
   pointer: null,
   pointerActive: false,
   pointerId: null,
-  isTouchDevice: window.matchMedia(TOUCH_QUERY).matches || navigator.maxTouchPoints > 0,
-  joystick: {
-    active: false,
-    pointerId: null,
-    centerX: 0,
-    centerY: 0,
-    x: 0,
-    y: 0,
-    radius: 0
-  },
+  backTrapArmed: false,
   lastInputSentAt: 0,
   visualPlayers: new Map(),
   visualBots: new Map()
@@ -193,6 +184,70 @@ function setConnectionStatus(status, reason = "") {
 
 function getServerLabel() {
   return state.serverUrl || `${window.location.protocol}//${window.location.host}`;
+}
+
+function canReturnToMainPage() {
+  return !!state.roomCode;
+}
+
+function hideBackConfirm() {
+  refs.backConfirmOverlay?.classList.add("hidden");
+}
+
+function showBackConfirm() {
+  if (!canReturnToMainPage()) return;
+  refs.backConfirmOverlay?.classList.remove("hidden");
+}
+
+function armBackTrap() {
+  if (!isNativeShell() || state.backTrapArmed) return;
+  try {
+    window.history.pushState({ dinoHoleBackTrap: Date.now() }, "", window.location.href);
+    state.backTrapArmed = true;
+  } catch {
+    state.backTrapArmed = false;
+  }
+}
+
+function handleAppBackAttempt() {
+  if (!canReturnToMainPage()) return false;
+  showBackConfirm();
+  armBackTrap();
+  return true;
+}
+
+function disconnectSocketForMenuReturn() {
+  clearConnectTimeout();
+  const socket = state.socket;
+  state.socket = null;
+  state.socketOpen = false;
+  state.pendingMessages = [];
+
+  if (!socket) return;
+
+  if (socket.readyState === WebSocket.OPEN) {
+    try {
+      socket.send(JSON.stringify({ type: "leave_room" }));
+    } catch {
+      // ignore
+    }
+  }
+
+  if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+    try {
+      socket.close(1000, "return_to_menu");
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function returnToMainPage() {
+  hideBackConfirm();
+  disconnectSocketForMenuReturn();
+  resetClientState();
+  setConnectionStatus("idle", "");
+  setMenuError("");
 }
 
 function buildSocketUrl() {
@@ -323,26 +378,6 @@ function saveName() {
   return value;
 }
 
-function resetJoystickVisual() {
-  if (refs.joystickStick) {
-    refs.joystickStick.style.transform = "translate(0px, 0px)";
-  }
-}
-
-function stopJoystick(forceStopInput = false) {
-  if (state.joystick.pointerId != null && refs.joystickBase?.hasPointerCapture(state.joystick.pointerId)) {
-    refs.joystickBase.releasePointerCapture(state.joystick.pointerId);
-  }
-  state.joystick.active = false;
-  state.joystick.pointerId = null;
-  state.joystick.x = 0;
-  state.joystick.y = 0;
-  resetJoystickVisual();
-  if (forceStopInput) {
-    sendStopInput();
-  }
-}
-
 function resetClientState() {
   clearConnectTimeout();
   state.playerId = "";
@@ -360,17 +395,18 @@ function resetClientState() {
   state.eventBanner = { text: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
   state.hasSnapshot = false;
   state.loadingProgress = 0;
+  state.runningStartedAt = 0;
   state.matchDurationMs = 0;
   state.timeLeftMs = 0;
   state.timeLeftSyncAt = performance.now();
   state.pointer = null;
   state.pointerActive = false;
   state.pointerId = null;
-  stopJoystick();
   state.visualPlayers.clear();
   state.visualBots.clear();
   refs.resultOverlay.classList.add("hidden");
   refs.loadingOverlay.classList.add("hidden");
+  hideBackConfirm();
   updateOverlays();
 }
 
@@ -410,9 +446,11 @@ function handleServerMessage(message) {
     state.phase = "lobby";
     state.hasSnapshot = false;
     state.loadingProgress = 0;
+    state.runningStartedAt = 0;
     state.matchDurationMs = 0;
     state.finalRanking = [];
     setMenuError("");
+    armBackTrap();
     updateOverlays();
     return;
   }
@@ -426,11 +464,15 @@ function handleServerMessage(message) {
     if (prevPhase !== "running" && state.phase === "running") {
       state.hasSnapshot = false;
       state.loadingProgress = Math.min(state.loadingProgress, 0.08);
+      state.runningStartedAt = performance.now();
     }
     if (state.phase === "finished") {
       state.finalRanking = message.ranking || [];
       showResults();
     } else if (state.phase !== "running") {
+      if (state.phase === "lobby") {
+        state.runningStartedAt = 0;
+      }
       refs.resultOverlay.classList.add("hidden");
     }
     renderRoomPlayers();
@@ -462,8 +504,12 @@ function handleServerMessage(message) {
 }
 
 function applySnapshot(snapshot) {
+  const previousPhase = state.phase;
   const previousTimeLeftMs = state.timeLeftMs;
   state.phase = "running";
+  if (previousPhase !== "running") {
+    state.runningStartedAt = performance.now();
+  }
   state.roomCode = snapshot.roomCode;
   state.ranking = snapshot.ranking || [];
   state.foods = snapshot.foods || { civilians: [], cars: [], crates: [] };
@@ -612,10 +658,6 @@ function updateOverlays() {
   refs.landingSection.classList.toggle("hidden", inRoom);
   refs.roomSection.classList.toggle("hidden", !inRoom);
 
-  if (refs.mobileControls) {
-    refs.mobileControls.classList.toggle("hidden", !(state.isTouchDevice && isRunning));
-  }
-
   if (!inRoom) return;
 
   refs.roomCodeBadge.textContent = state.roomCode;
@@ -709,123 +751,47 @@ function sendPointer(force = false) {
   });
 }
 
-function sendStopInput() {
-  if (state.phase !== "running") return;
-  const self = state.visualPlayers.get(state.playerId);
-  if (!self || !self.alive) return;
-
-  state.pointer = {
-    x: clamp(self.displayX, 20, WORLD.w - 20),
-    y: clamp(self.displayY, 20, WORLD.h - 20)
-  };
-  state.pointerActive = false;
-  sendPointer(true);
-}
-
 function onPointerDown(event) {
   if (state.phase !== "running") return;
-  if (state.isTouchDevice && event.pointerType !== "mouse") return;
+  if (event.pointerType === "mouse" && event.button !== 0) return;
 
   state.pointerActive = true;
   state.pointerId = event.pointerId;
   state.pointer = renderer.getWorldPointer(event);
+  if (canvas.setPointerCapture) {
+    canvas.setPointerCapture(event.pointerId);
+  }
   sendPointer(true);
 }
 
 function onPointerMove(event) {
   if (state.phase !== "running") return;
-  if (state.isTouchDevice && event.pointerType !== "mouse") return;
-  if (!state.pointerActive && event.pointerType !== "mouse") return;
-  if (state.pointerActive && state.pointerId != null && event.pointerId !== state.pointerId) return;
+  if (!state.pointerActive) return;
+  if (state.pointerId != null && event.pointerId !== state.pointerId) return;
 
   state.pointer = renderer.getWorldPointer(event);
-  if (state.pointerActive) sendPointer();
+  sendPointer();
 }
 
 function onPointerUp(event) {
   if (state.pointerId != null && event.pointerId !== state.pointerId) return;
+  if (state.pointerId != null && canvas.hasPointerCapture?.(state.pointerId)) {
+    canvas.releasePointerCapture(state.pointerId);
+  }
   state.pointerActive = false;
   state.pointerId = null;
 }
 
-function updateJoystickVisual(dx, dy) {
-  if (!refs.joystickStick) return;
-  refs.joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
-}
-
-function computeJoystickRadius() {
-  const rect = refs.joystickBase?.getBoundingClientRect();
-  if (!rect) return 0;
-  return Math.max(22, rect.width * 0.33);
-}
-
-function syncJoystickPointer(force = false) {
-  if (!state.joystick.active || state.phase !== "running") return;
-
-  const self = state.visualPlayers.get(state.playerId);
-  if (!self || !self.alive) return;
-
-  const mag = Math.hypot(state.joystick.x, state.joystick.y);
-  if (mag < 0.06) {
-    if (force) sendStopInput();
-    return;
-  }
-
-  const travel = 280;
-  state.pointer = {
-    x: clamp(self.displayX + state.joystick.x * travel, 20, WORLD.w - 20),
-    y: clamp(self.displayY + state.joystick.y * travel, 20, WORLD.h - 20)
-  };
-  state.pointerActive = true;
-  sendPointer(force);
-}
-
-function updateJoystickFromEvent(event) {
-  const radius = state.joystick.radius || computeJoystickRadius();
-  state.joystick.radius = radius;
-
-  const dx = event.clientX - state.joystick.centerX;
-  const dy = event.clientY - state.joystick.centerY;
-  const distance = Math.hypot(dx, dy);
-  const clampedDistance = Math.min(distance, radius);
-  const ratio = distance > 0.001 ? clampedDistance / distance : 0;
-  const clampedDx = dx * ratio;
-  const clampedDy = dy * ratio;
-
-  state.joystick.x = radius > 0 ? clampedDx / radius : 0;
-  state.joystick.y = radius > 0 ? clampedDy / radius : 0;
-  updateJoystickVisual(clampedDx, clampedDy);
-  syncJoystickPointer(true);
-}
-
-function onJoystickDown(event) {
-  if (state.phase !== "running") return;
-  if (!refs.joystickBase) return;
-
+function onWindowKeyDown(event) {
+  if (event.key !== "Escape") return;
+  if (!handleAppBackAttempt()) return;
   event.preventDefault();
-  const rect = refs.joystickBase.getBoundingClientRect();
-  state.joystick.active = true;
-  state.joystick.pointerId = event.pointerId;
-  state.joystick.centerX = rect.left + rect.width * 0.5;
-  state.joystick.centerY = rect.top + rect.height * 0.5;
-  state.joystick.radius = Math.max(22, rect.width * 0.33);
-
-  refs.joystickBase.setPointerCapture(event.pointerId);
-  updateJoystickFromEvent(event);
 }
 
-function onJoystickMove(event) {
-  if (!state.joystick.active) return;
-  if (event.pointerId !== state.joystick.pointerId) return;
-  event.preventDefault();
-  updateJoystickFromEvent(event);
-}
-
-function onJoystickUp(event) {
-  if (!state.joystick.active) return;
-  if (event.pointerId !== state.joystick.pointerId) return;
-  event.preventDefault();
-  stopJoystick(true);
+function onPopState() {
+  if (!isNativeShell()) return;
+  state.backTrapArmed = false;
+  handleAppBackAttempt();
 }
 
 function copyByExecCommand(text) {
@@ -891,6 +857,8 @@ refs.startMatchBtn.addEventListener("click", () => send({ type: "start_match" })
 refs.rematchBtn.addEventListener("click", () => send({ type: "start_match" }));
 refs.leaveRoomBtn.addEventListener("click", () => send({ type: "leave_room" }));
 refs.leaveAfterMatchBtn.addEventListener("click", () => send({ type: "leave_room" }));
+refs.stayInGameBtn?.addEventListener("click", hideBackConfirm);
+refs.returnHomeBtn?.addEventListener("click", returnToMainPage);
 refs.copyRoomBtn.addEventListener("click", copyRoomCodeSafe);
 refs.roomCodeInput.addEventListener("input", () => {
   refs.roomCodeInput.value = refs.roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
@@ -910,24 +878,19 @@ canvas.addEventListener("pointerdown", onPointerDown);
 canvas.addEventListener("pointermove", onPointerMove);
 canvas.addEventListener("pointerup", onPointerUp);
 canvas.addEventListener("pointercancel", onPointerUp);
-
-if (refs.joystickBase) {
-  refs.joystickBase.addEventListener("pointerdown", onJoystickDown);
-  refs.joystickBase.addEventListener("pointermove", onJoystickMove);
-  refs.joystickBase.addEventListener("pointerup", onJoystickUp);
-  refs.joystickBase.addEventListener("pointercancel", onJoystickUp);
-}
+canvas.addEventListener("pointerleave", onPointerUp);
 
 window.addEventListener("resize", () => {
   renderer.resize();
-  state.joystick.radius = 0;
+});
+window.addEventListener("keydown", onWindowKeyDown);
+window.addEventListener("popstate", onPopState);
+document.addEventListener("backbutton", (event) => {
+  if (!handleAppBackAttempt()) return;
+  event.preventDefault();
 });
 
 window.setInterval(() => {
-  if (state.joystick.active) {
-    syncJoystickPointer();
-    return;
-  }
   if (state.pointerActive) {
     sendPointer();
   }
@@ -937,15 +900,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
-
-
-
-
-
-
-
-
 
 
 
