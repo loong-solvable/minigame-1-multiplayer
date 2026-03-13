@@ -88,6 +88,7 @@ export function createRenderer(canvas, refs, state) {
 
   function updateCamera(dt) {
     const self = state.visualPlayers.get(state.playerId) || null;
+    const inMatch = state.phase === "running" || state.phase === "finished";
     const targetScale = getTargetCameraScale();
     camera.scale += (targetScale - camera.scale) * Math.min(1, dt * 4.5);
     camera.viewW = viewW / camera.scale;
@@ -98,6 +99,11 @@ export function createRenderer(canvas, refs, state) {
     const maxY = Math.max(0, WORLD.h - camera.viewH);
     const targetX = clamp(focusX - camera.viewW * 0.5, 0, maxX);
     const targetY = clamp(focusY - camera.viewH * 0.5, 0, maxY);
+    if (self && inMatch) {
+      camera.x = targetX;
+      camera.y = targetY;
+      return;
+    }
     camera.x += (targetX - camera.x) * Math.min(1, dt * 8);
     camera.y += (targetY - camera.y) * Math.min(1, dt * 8);
   }
