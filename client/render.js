@@ -58,11 +58,32 @@ export function createRenderer(canvas, refs, state) {
   function getTargetCameraScale() {
     const aspect = viewW / Math.max(1, viewH);
     const inMatch = state.phase === "running" || state.phase === "finished";
+    const self = state.visualPlayers.get(state.playerId) || null;
 
     if (!inMatch) return 1;
-    if (aspect >= 1.25) return 0.48;
-    if (aspect >= 0.95) return 0.6;
-    return 0.76;
+
+    let baseScale = 0.7;
+    let minScale = 0.56;
+
+    if (aspect >= 1.65) {
+      baseScale = 0.4;
+      minScale = 0.28;
+    } else if (aspect >= 1.25) {
+      baseScale = 0.43;
+      minScale = 0.28;
+    } else if (aspect >= 0.95) {
+      baseScale = 0.54;
+      minScale = 0.4;
+    }
+
+    if (!self) return baseScale;
+
+    const holeR = Math.max(34, self.displayHoleR || self.targetHoleR || 38);
+    const growthProgress = clamp((holeR - 38) / 58, 0, 1);
+    const giantBonus = clamp((holeR - 92) / 40, 0, 1) * 0.05;
+    const dynamicZoomOut = 0.03 + growthProgress * 0.09 + giantBonus;
+
+    return clamp(baseScale - dynamicZoomOut, minScale, 1);
   }
 
   function updateCamera(dt) {
