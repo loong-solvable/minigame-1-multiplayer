@@ -15,7 +15,7 @@ export function createRenderer(canvas, refs, state) {
   const ctx = canvas.getContext("2d");
   const { roadRects, mapBlocks } = buildMap();
   const art = createArtStore();
-  const camera = { x: 0, y: 0 };
+  const camera = { x: 0, y: 0, scale: 1, viewW: 1, viewH: 1 };
   let dpr = 1;
   let viewW = 1;
   let viewH = 1;
@@ -50,19 +50,33 @@ export function createRenderer(canvas, refs, state) {
   function getWorldPointer(event) {
     const rect = canvas.getBoundingClientRect();
     return {
-      x: clamp(event.clientX - rect.left + camera.x, 20, WORLD.w - 20),
-      y: clamp(event.clientY - rect.top + camera.y, 20, WORLD.h - 20)
+      x: clamp((event.clientX - rect.left) / camera.scale + camera.x, 20, WORLD.w - 20),
+      y: clamp((event.clientY - rect.top) / camera.scale + camera.y, 20, WORLD.h - 20)
     };
+  }
+
+  function getTargetCameraScale() {
+    const aspect = viewW / Math.max(1, viewH);
+    const inMatch = state.phase === "running" || state.phase === "finished";
+
+    if (!inMatch) return 1;
+    if (aspect >= 1.25) return 0.68;
+    if (aspect >= 0.95) return 0.78;
+    return 0.88;
   }
 
   function updateCamera(dt) {
     const self = state.visualPlayers.get(state.playerId) || null;
+    const targetScale = getTargetCameraScale();
+    camera.scale += (targetScale - camera.scale) * Math.min(1, dt * 4.5);
+    camera.viewW = viewW / camera.scale;
+    camera.viewH = viewH / camera.scale;
     const focusX = self ? self.displayX : WORLD.w * 0.5;
     const focusY = self ? self.displayY : WORLD.h * 0.5;
-    const maxX = Math.max(0, WORLD.w - viewW);
-    const maxY = Math.max(0, WORLD.h - viewH);
-    const targetX = clamp(focusX - viewW * 0.5, 0, maxX);
-    const targetY = clamp(focusY - viewH * 0.5, 0, maxY);
+    const maxX = Math.max(0, WORLD.w - camera.viewW);
+    const maxY = Math.max(0, WORLD.h - camera.viewH);
+    const targetX = clamp(focusX - camera.viewW * 0.5, 0, maxX);
+    const targetY = clamp(focusY - camera.viewH * 0.5, 0, maxY);
     camera.x += (targetX - camera.x) * Math.min(1, dt * 8);
     camera.y += (targetY - camera.y) * Math.min(1, dt * 8);
   }
@@ -354,6 +368,11 @@ export function createRenderer(canvas, refs, state) {
     ctx.globalAlpha = 1;
   }
 
+  function getTopOverlayBaseline() {
+    const hudRect = refs.hudEl?.getBoundingClientRect();
+    return hudRect ? hudRect.bottom + 8 : 10;
+  }
+
   function drawEventOverlay() {
     const banner = state.eventBanner || { text: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
 
@@ -374,9 +393,10 @@ export function createRenderer(canvas, refs, state) {
     }
 
     const w = Math.min(700, viewW * 0.93);
-    const h = 102;
+    const compact = viewH < 560;
+    const h = compact ? 82 : 102;
     const x = (viewW - w) * 0.5;
-    const y = 20 + Math.sin(state.elapsed * 12) * 2;
+    const y = getTopOverlayBaseline() + (state.phase === "running" ? (compact ? 54 : 62) : 0) + Math.sin(state.elapsed * 12) * 2;
     const pulse = 0.62 + Math.sin(state.elapsed * 19) * 0.38;
 
     ctx.save();
@@ -406,15 +426,15 @@ export function createRenderer(canvas, refs, state) {
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = banner.color || "#5ce1ff";
     ctx.shadowBlur = 24;
-    ctx.font = "900 44px Trebuchet MS";
+    ctx.font = compact ? "900 34px Trebuchet MS" : "900 44px Trebuchet MS";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(banner.text, viewW * 0.5, y + h * 0.5 - 6);
     ctx.shadowBlur = 0;
 
-    ctx.font = "700 19px Trebuchet MS";
+    ctx.font = compact ? "700 15px Trebuchet MS" : "700 19px Trebuchet MS";
     ctx.fillStyle = "rgba(255,255,255,0.86)";
-    ctx.fillText("增益已生效", viewW * 0.5, y + h - 21);
+    ctx.fillText("增益已生效", viewW * 0.5, y + h - (compact ? 18 : 21));
     ctx.restore();
   }
 
@@ -434,10 +454,11 @@ export function createRenderer(canvas, refs, state) {
     const accent = isCritical ? "#ff7c7c" : isWarning ? "#ffd95f" : "#5ce1ff";
     const pulse = isCritical ? 0.72 + Math.sin(state.elapsed * 18) * 0.22 : 0.66;
 
-    const w = Math.min(420, viewW * 0.72);
-    const h = 52;
+    const compact = viewH < 560;
+    const w = Math.min(compact ? 360 : 420, viewW * 0.72);
+    const h = compact ? 44 : 52;
     const x = (viewW - w) * 0.5;
-    const y = 10;
+    const y = getTopOverlayBaseline();
 
     ctx.save();
     ctx.fillStyle = "rgba(7,14,24,0.8)";
@@ -470,7 +491,7 @@ export function createRenderer(canvas, refs, state) {
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = accent;
     ctx.shadowBlur = isCritical ? 18 : 10;
-    ctx.font = "900 30px Trebuchet MS";
+    ctx.font = compact ? "900 25px Trebuchet MS" : "900 30px Trebuchet MS";
     ctx.fillText(`${mm}:${ss}`, viewW * 0.5, y + h * 0.46);
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -652,7 +673,7 @@ export function createRenderer(canvas, refs, state) {
         `</div>`;
     }
 
-    const topRows = state.ranking.slice(0, 4);
+    const topRows = state.ranking.slice(0, 5);
     const selfRow = state.ranking.find((row) => row.id === state.playerId);
     const boardRows = selfRow && !topRows.some((row) => row.id === selfRow.id)
       ? [...topRows, selfRow]
@@ -660,11 +681,12 @@ export function createRenderer(canvas, refs, state) {
 
     refs.boardEl.innerHTML = boardRows.map((row) => {
       const rank = state.ranking.findIndex((entry) => entry.id === row.id) + 1;
+      const score = Number(row.score ?? 0);
       return `
         <div class="boardEntry${row.id === state.playerId ? " boardEntrySelf" : ""}">
           <span class="boardRank">${rank}</span>
           <span class="boardName">${row.name}${row.isBot ? " [BOT]" : ""}${row.id === state.playerId ? " · 你" : ""}</span>
-          <span class="boardScore">${row.score}</span>
+          <span class="boardScore">${score}</span>
         </div>
       `;
     }).join("");
@@ -702,6 +724,7 @@ export function createRenderer(canvas, refs, state) {
     updateCamera(dt);
     ctx.clearRect(0, 0, viewW, viewH);
     ctx.save();
+    ctx.scale(camera.scale, camera.scale);
     ctx.translate(-camera.x, -camera.y);
     drawRoads();
     drawControlPoints();

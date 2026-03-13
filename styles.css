@@ -41,7 +41,7 @@ input {
   position: fixed;
   inset: calc(env(safe-area-inset-top, 0px) + 8px) 8px auto 8px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(136px, 24vw);
+  grid-template-columns: minmax(0, 1fr) minmax(174px, 27vw);
   align-items: start;
   gap: 6px;
   z-index: 2;
@@ -65,6 +65,7 @@ input {
 
 .boardPanel {
   min-width: 0;
+  width: min(260px, 32vw);
   justify-self: end;
 }
 
@@ -134,7 +135,7 @@ input {
 
 .boardEntry {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 18px minmax(0, 1fr) minmax(42px, auto);
   align-items: center;
   gap: 6px;
   min-width: 0;
@@ -159,6 +160,8 @@ input {
 }
 
 .boardScore {
+  min-width: 42px;
+  text-align: right;
   font-weight: 800;
   color: var(--good);
 }
@@ -527,7 +530,7 @@ button:disabled {
 
 @media (max-width: 720px) {
   #hud {
-    grid-template-columns: minmax(0, 1fr) minmax(124px, 34vw);
+    grid-template-columns: minmax(0, 1fr) minmax(152px, 36vw);
     inset: calc(env(safe-area-inset-top, 0px) + 6px) 6px auto 6px;
     gap: 6px;
   }
@@ -535,6 +538,10 @@ button:disabled {
   .panel {
     font-size: 11px;
     padding: 6px 8px;
+  }
+
+  .boardPanel {
+    width: min(210px, 38vw);
   }
 
   .hudChip {

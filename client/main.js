@@ -1,3 +1,4 @@
+import { ScreenOrientation } from "@capacitor/screen-orientation";
 import { WORLD, clamp, dist2, lerp, lerpAngle } from "./constants.js";
 import { createRenderer } from "./render.js";
 
@@ -6,6 +7,7 @@ if (typeof window !== "undefined") {
   window.__appBoot.moduleLoaded = true;
 }
 const refs = {
+  hudEl: document.getElementById("hud"),
   statsEl: document.getElementById("stats"),
   boardEl: document.getElementById("leaderboard"),
   hintEl: document.getElementById("hint"),
@@ -78,6 +80,7 @@ const state = {
   pointerActive: false,
   pointerId: null,
   backTrapArmed: false,
+  orientationLock: "",
   lastInputSentAt: 0,
   visualPlayers: new Map(),
   visualBots: new Map()
@@ -188,6 +191,23 @@ function getServerLabel() {
 
 function canReturnToMainPage() {
   return !!state.roomCode;
+}
+
+function getDesiredOrientationLock() {
+  return state.phase === "running" || state.phase === "finished" ? "landscape" : "portrait";
+}
+
+async function syncScreenOrientation(force = false) {
+  if (!isNativeShell()) return;
+  const desired = getDesiredOrientationLock();
+  if (!force && state.orientationLock === desired) return;
+
+  try {
+    await ScreenOrientation.lock({ orientation: desired });
+    state.orientationLock = desired;
+  } catch {
+    // Ignore orientation lock failures in unsupported environments.
+  }
 }
 
 function hideBackConfirm() {
@@ -402,6 +422,7 @@ function resetClientState() {
   state.pointer = null;
   state.pointerActive = false;
   state.pointerId = null;
+  state.orientationLock = "";
   state.visualPlayers.clear();
   state.visualBots.clear();
   refs.resultOverlay.classList.add("hidden");
@@ -657,6 +678,7 @@ function updateOverlays() {
   refs.menuOverlay.classList.toggle("hidden", isRunning);
   refs.landingSection.classList.toggle("hidden", inRoom);
   refs.roomSection.classList.toggle("hidden", !inRoom);
+  syncScreenOrientation();
 
   if (!inRoom) return;
 
@@ -900,8 +922,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
-
 
 
 
