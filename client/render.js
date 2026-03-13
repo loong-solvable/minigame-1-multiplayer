@@ -60,9 +60,9 @@ export function createRenderer(canvas, refs, state) {
     const inMatch = state.phase === "running" || state.phase === "finished";
 
     if (!inMatch) return 1;
-    if (aspect >= 1.25) return 0.68;
-    if (aspect >= 0.95) return 0.78;
-    return 0.88;
+    if (aspect >= 1.25) return 0.48;
+    if (aspect >= 0.95) return 0.6;
+    return 0.76;
   }
 
   function updateCamera(dt) {
@@ -368,9 +368,9 @@ export function createRenderer(canvas, refs, state) {
     ctx.globalAlpha = 1;
   }
 
-  function getTopOverlayBaseline() {
+  function getTopOverlayInset() {
     const hudRect = refs.hudEl?.getBoundingClientRect();
-    return hudRect ? hudRect.bottom + 8 : 10;
+    return hudRect ? Math.max(6, hudRect.top + 2) : 8;
   }
 
   function drawEventOverlay() {
@@ -392,11 +392,12 @@ export function createRenderer(canvas, refs, state) {
       return;
     }
 
-    const w = Math.min(700, viewW * 0.93);
     const compact = viewH < 560;
-    const h = compact ? 82 : 102;
+    const w = Math.min(compact ? 360 : 420, viewW * 0.54);
+    const h = compact ? 58 : 66;
     const x = (viewW - w) * 0.5;
-    const y = getTopOverlayBaseline() + (state.phase === "running" ? (compact ? 54 : 62) : 0) + Math.sin(state.elapsed * 12) * 2;
+    const topInset = getTopOverlayInset();
+    const y = topInset + (compact ? 40 : 48) + Math.sin(state.elapsed * 12) * 1.5;
     const pulse = 0.62 + Math.sin(state.elapsed * 19) * 0.38;
 
     ctx.save();
@@ -407,12 +408,12 @@ export function createRenderer(canvas, refs, state) {
     roundedRectPath(x, y, w, h, 18);
     ctx.fill();
 
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 4;
     ctx.strokeStyle = banner.color || "#5ce1ff";
     roundedRectPath(x, y, w, h, 18);
     ctx.stroke();
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 1.5;
     ctx.strokeStyle = "rgba(255,255,255,0.72)";
     roundedRectPath(x + 3, y + 3, w - 6, h - 6, 15);
     ctx.stroke();
@@ -425,16 +426,16 @@ export function createRenderer(canvas, refs, state) {
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = banner.color || "#5ce1ff";
-    ctx.shadowBlur = 24;
-    ctx.font = compact ? "900 34px Trebuchet MS" : "900 44px Trebuchet MS";
+    ctx.shadowBlur = 18;
+    ctx.font = compact ? "900 24px Trebuchet MS" : "900 28px Trebuchet MS";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(banner.text, viewW * 0.5, y + h * 0.5 - 6);
+    ctx.fillText(banner.text, viewW * 0.5, y + h * 0.5 - 4);
     ctx.shadowBlur = 0;
 
-    ctx.font = compact ? "700 15px Trebuchet MS" : "700 19px Trebuchet MS";
+    ctx.font = compact ? "700 11px Trebuchet MS" : "700 12px Trebuchet MS";
     ctx.fillStyle = "rgba(255,255,255,0.86)";
-    ctx.fillText("增益已生效", viewW * 0.5, y + h - (compact ? 18 : 21));
+    ctx.fillText("增益已生效", viewW * 0.5, y + h - (compact ? 12 : 14));
     ctx.restore();
   }
 
@@ -455,10 +456,10 @@ export function createRenderer(canvas, refs, state) {
     const pulse = isCritical ? 0.72 + Math.sin(state.elapsed * 18) * 0.22 : 0.66;
 
     const compact = viewH < 560;
-    const w = Math.min(compact ? 360 : 420, viewW * 0.72);
-    const h = compact ? 44 : 52;
+    const w = Math.min(compact ? 250 : 290, viewW * 0.42);
+    const h = compact ? 34 : 38;
     const x = (viewW - w) * 0.5;
-    const y = getTopOverlayBaseline();
+    const y = getTopOverlayInset();
 
     ctx.save();
     ctx.fillStyle = "rgba(7,14,24,0.8)";
@@ -491,7 +492,7 @@ export function createRenderer(canvas, refs, state) {
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = accent;
     ctx.shadowBlur = isCritical ? 18 : 10;
-    ctx.font = compact ? "900 25px Trebuchet MS" : "900 30px Trebuchet MS";
+    ctx.font = compact ? "900 18px Trebuchet MS" : "900 20px Trebuchet MS";
     ctx.fillText(`${mm}:${ss}`, viewW * 0.5, y + h * 0.46);
     ctx.shadowBlur = 0;
     ctx.restore();
@@ -644,8 +645,12 @@ export function createRenderer(canvas, refs, state) {
     const localTimeLeft = Math.max(0, state.timeLeftMs - (performance.now() - state.timeLeftSyncAt));
     const mm = Math.floor(localTimeLeft / 60000);
     const ss = Math.floor((localTimeLeft % 60000) / 1000).toString().padStart(2, "0");
+    const gameplayMinimal = state.phase === "running" || state.phase === "finished";
 
-    if (self) {
+    refs.hudEl?.classList.toggle("gameHudMinimal", gameplayMinimal);
+    refs.statsEl?.classList.toggle("hidden", gameplayMinimal);
+
+    if (!gameplayMinimal && self) {
       const effects = [];
       if (self.effects?.speedMs > 0) effects.push(`Speed ${(self.effects.speedMs / 1000).toFixed(1)}s`);
       if (self.effects?.magnetMs > 0) effects.push(`Magnet ${(self.effects.magnetMs / 1000).toFixed(1)}s`);
@@ -665,7 +670,7 @@ export function createRenderer(canvas, refs, state) {
         `</div>` +
         `${effects.length ? `<div class="hudEffects">效果 ${effects.join(" · ")}</div>` : ""}` +
         `</div>`;
-    } else {
+    } else if (!gameplayMinimal) {
       refs.statsEl.innerHTML =
         `<div class="hudStats">` +
         `<div class="hudTitle">Dino Hole Rampage Online</div>` +
@@ -673,7 +678,7 @@ export function createRenderer(canvas, refs, state) {
         `</div>`;
     }
 
-    const topRows = state.ranking.slice(0, 5);
+    const topRows = state.ranking.slice(0, gameplayMinimal ? 4 : 5);
     const selfRow = state.ranking.find((row) => row.id === state.playerId);
     const boardRows = selfRow && !topRows.some((row) => row.id === selfRow.id)
       ? [...topRows, selfRow]

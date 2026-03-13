@@ -41,11 +41,15 @@ input {
   position: fixed;
   inset: calc(env(safe-area-inset-top, 0px) + 8px) 8px auto 8px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(174px, 27vw);
+  grid-template-columns: minmax(0, 1fr) minmax(138px, 18vw);
   align-items: start;
   gap: 6px;
   z-index: 2;
   pointer-events: none;
+}
+
+#hud.gameHudMinimal {
+  grid-template-columns: 1fr;
 }
 
 .panel {
@@ -65,14 +69,16 @@ input {
 
 .boardPanel {
   min-width: 0;
-  width: min(260px, 32vw);
+  width: min(136px, 18vw);
   justify-self: end;
+  padding: 5px 7px;
+  font-size: 10px;
 }
 
 .boardHeader {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 800;
-  letter-spacing: 1.2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   color: rgba(227, 240, 255, 0.72);
 }
@@ -128,19 +134,20 @@ input {
 }
 
 #leaderboard {
-  margin-top: 4px;
+  margin-top: 3px;
   display: grid;
-  gap: 4px;
+  gap: 2px;
 }
 
 .boardEntry {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) minmax(42px, auto);
+  grid-template-columns: 14px minmax(0, 1fr) 30px;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
-  padding: 3px 0;
+  padding: 1px 0;
   color: rgba(231, 240, 250, 0.86);
+  font-size: 10px;
 }
 
 .boardEntrySelf {
@@ -150,6 +157,7 @@ input {
 .boardRank {
   font-weight: 800;
   color: rgba(255, 255, 255, 0.72);
+  font-size: 9px;
 }
 
 .boardName {
@@ -160,10 +168,11 @@ input {
 }
 
 .boardScore {
-  min-width: 42px;
+  min-width: 30px;
   text-align: right;
   font-weight: 800;
   color: var(--good);
+  font-size: 10px;
 }
 
 #hint {
@@ -530,7 +539,7 @@ button:disabled {
 
 @media (max-width: 720px) {
   #hud {
-    grid-template-columns: minmax(0, 1fr) minmax(152px, 36vw);
+    grid-template-columns: minmax(0, 1fr) minmax(118px, 28vw);
     inset: calc(env(safe-area-inset-top, 0px) + 6px) 6px auto 6px;
     gap: 6px;
   }
@@ -541,7 +550,8 @@ button:disabled {
   }
 
   .boardPanel {
-    width: min(210px, 38vw);
+    width: min(118px, 28vw);
+    padding: 4px 6px;
   }
 
   .hudChip {
