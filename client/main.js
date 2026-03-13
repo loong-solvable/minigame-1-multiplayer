@@ -141,9 +141,7 @@ function isNativeShell() {
     return true;
   }
 
-  return window.location.protocol === "http:" &&
-    window.location.hostname === "localhost" &&
-    !window.location.port;
+  return window.location.hostname === "localhost" && !window.location.port;
 }
 
 function resolveServerUrl() {
@@ -939,7 +937,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
 
 
 

@@ -3,6 +3,6 @@
   "appName": "Dino Hole Rampage",
   "webDir": "mobile-web",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "http"
   }
 }
