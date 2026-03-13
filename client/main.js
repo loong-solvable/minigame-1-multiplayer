@@ -794,7 +794,7 @@ function showResults() {
   const self = state.finalRanking.find((row) => row.id === state.playerId);
 
   refs.resultSummary.textContent = rank && self
-    ? `你获得第 ${rank} 名，得分 ${self.score}，击败 ${self.kills} 名对手，当前质量 ${self.mass}。`
+    ? `第 ${rank} 名 · 得分 ${self.score} · 击败 ${self.kills} · 质量 ${self.mass}`
     : "本局结束，查看最终排名。";
 
   refs.resultBoard.innerHTML = "";
@@ -977,7 +977,6 @@ installNativeBackHandler();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
 
 
 

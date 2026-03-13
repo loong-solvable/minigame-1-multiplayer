@@ -429,6 +429,34 @@ button:disabled {
   margin: 14px 0 16px 0;
 }
 
+#resultOverlay {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.resultCard {
+  width: min(560px, 95vw);
+  max-height: min(92vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 16px));
+  display: flex;
+  flex-direction: column;
+  padding: 16px 14px;
+}
+
+#resultSummary {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.resultBoard {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 10px 0 12px 0;
+  padding-right: 2px;
+}
+
 .playerRow,
 .resultRow {
   display: grid;
@@ -458,6 +486,29 @@ button:disabled {
 .resultName {
   font-size: 15px;
   font-weight: 800;
+}
+
+.resultRow {
+  padding: 8px 10px;
+  gap: 8px;
+}
+
+.resultMeta {
+  font-size: 12px;
+}
+
+.resultName {
+  font-size: 14px;
+}
+
+.resultCard .actions {
+  margin-top: auto;
+  gap: 8px;
+}
+
+.resultCard .actions button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .errorText {
@@ -596,6 +647,61 @@ button:disabled {
   .resultMeta,
   .serverHint {
     font-size: 14px;
+  }
+
+  .resultCard {
+    width: min(96vw, 560px);
+    padding: 12px;
+  }
+
+  .resultCard .actions {
+    flex-direction: row;
+  }
+
+  .resultCard .actions button {
+    min-height: 40px;
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+}
+
+@media (max-height: 520px) {
+  .resultCard {
+    max-height: min(96vh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 8px));
+    padding: 10px;
+  }
+
+  .resultCard h2 {
+    margin-bottom: 6px;
+    font-size: clamp(20px, 5vh, 28px);
+  }
+
+  #resultSummary {
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .resultBoard {
+    gap: 6px;
+    margin: 8px 0 8px 0;
+  }
+
+  .resultRow {
+    padding: 6px 8px;
+  }
+
+  .resultName {
+    font-size: 13px;
+  }
+
+  .resultMeta {
+    font-size: 11px;
+  }
+
+  .resultCard .actions button {
+    min-height: 36px;
+    font-size: 13px;
   }
 }
 
