@@ -62,28 +62,42 @@ export function createRenderer(canvas, refs, state) {
 
     if (!inMatch) return 1;
 
-    let baseScale = 0.7;
-    let minScale = 0.56;
+    let baseScale = 0.68;
+    let minScale = 0.54;
+    let maxVisibleWidthRatio = 0.78;
+    let maxVisibleHeightRatio = 0.58;
 
     if (aspect >= 1.65) {
-      baseScale = 0.4;
-      minScale = 0.28;
+      baseScale = 0.44;
+      minScale = 0.4;
+      maxVisibleWidthRatio = 0.88;
+      maxVisibleHeightRatio = 0.44;
     } else if (aspect >= 1.25) {
-      baseScale = 0.43;
-      minScale = 0.28;
+      baseScale = 0.46;
+      minScale = 0.42;
+      maxVisibleWidthRatio = 0.86;
+      maxVisibleHeightRatio = 0.48;
     } else if (aspect >= 0.95) {
       baseScale = 0.54;
-      minScale = 0.4;
+      minScale = 0.48;
+      maxVisibleWidthRatio = 0.8;
+      maxVisibleHeightRatio = 0.56;
     }
 
-    if (!self) return baseScale;
+    const coverageGuardScale = Math.max(
+      viewW / Math.max(1, WORLD.w * maxVisibleWidthRatio),
+      viewH / Math.max(1, WORLD.h * maxVisibleHeightRatio)
+    );
+    const guardedMinScale = Math.max(minScale, coverageGuardScale);
+
+    if (!self) return Math.max(baseScale, guardedMinScale);
 
     const holeR = Math.max(34, self.displayHoleR || self.targetHoleR || 38);
-    const growthProgress = clamp((holeR - 38) / 58, 0, 1);
-    const giantBonus = clamp((holeR - 92) / 40, 0, 1) * 0.05;
-    const dynamicZoomOut = 0.03 + growthProgress * 0.09 + giantBonus;
+    const growthProgress = clamp((holeR - 38) / 54, 0, 1);
+    const giantBonus = clamp((holeR - 92) / 42, 0, 1) * 0.025;
+    const dynamicZoomOut = 0.018 + growthProgress * 0.05 + giantBonus;
 
-    return clamp(baseScale - dynamicZoomOut, minScale, 1);
+    return clamp(baseScale - dynamicZoomOut, guardedMinScale, 1);
   }
 
   function updateCamera(dt) {
@@ -401,7 +415,7 @@ export function createRenderer(canvas, refs, state) {
   }
 
   function drawEventOverlay() {
-    const banner = state.eventBanner || { text: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
+    const banner = state.eventBanner || { text: "", subtitle: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
 
     if (banner.flash > 0) {
       const flash = clamp(banner.flash, 0, 0.8);
@@ -420,14 +434,16 @@ export function createRenderer(canvas, refs, state) {
     }
 
     const compact = viewH < 560;
-    const w = Math.min(compact ? 360 : 420, viewW * 0.54);
-    const h = compact ? 58 : 66;
+    const hasSubtitle = !!banner.subtitle;
+    const w = Math.min(compact ? 340 : 390, viewW * 0.5);
+    const h = hasSubtitle ? (compact ? 54 : 60) : (compact ? 40 : 46);
     const x = (viewW - w) * 0.5;
     const topInset = getTopOverlayInset();
-    const y = topInset + (compact ? 40 : 48) + Math.sin(state.elapsed * 12) * 1.5;
-    const pulse = 0.62 + Math.sin(state.elapsed * 19) * 0.38;
+    const y = topInset + (compact ? 40 : 46);
+    const alpha = banner.ttlMs < 360 ? clamp(banner.ttlMs / 360, 0, 1) : 1;
 
     ctx.save();
+    ctx.globalAlpha = alpha;
     const bg = ctx.createLinearGradient(x, y, x + w, y + h);
     bg.addColorStop(0, "rgba(8,16,28,0.95)");
     bg.addColorStop(1, "rgba(18,28,46,0.95)");
@@ -445,24 +461,21 @@ export function createRenderer(canvas, refs, state) {
     roundedRectPath(x + 3, y + 3, w - 6, h - 6, 15);
     ctx.stroke();
 
-    ctx.globalAlpha = 0.18 + pulse * 0.24;
-    ctx.fillStyle = banner.color || "#5ce1ff";
-    roundedRectPath(x + 8, y + 8, w - 16, h - 16, 13);
-    ctx.fill();
-
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#ffffff";
     ctx.shadowColor = banner.color || "#5ce1ff";
-    ctx.shadowBlur = 18;
-    ctx.font = compact ? "900 24px Trebuchet MS" : "900 28px Trebuchet MS";
+    ctx.shadowBlur = 14;
+    ctx.font = compact ? "900 20px Trebuchet MS" : "900 24px Trebuchet MS";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(banner.text, viewW * 0.5, y + h * 0.5 - 4);
+    ctx.fillText(banner.text, viewW * 0.5, y + (hasSubtitle ? h * 0.42 : h * 0.52));
     ctx.shadowBlur = 0;
 
-    ctx.font = compact ? "700 11px Trebuchet MS" : "700 12px Trebuchet MS";
-    ctx.fillStyle = "rgba(255,255,255,0.86)";
-    ctx.fillText("增益已生效", viewW * 0.5, y + h - (compact ? 12 : 14));
+    if (hasSubtitle) {
+      ctx.font = compact ? "700 10px Trebuchet MS" : "700 11px Trebuchet MS";
+      ctx.fillStyle = "rgba(255,255,255,0.84)";
+      ctx.fillText(banner.subtitle, viewW * 0.5, y + h - (compact ? 11 : 13));
+    }
     ctx.restore();
   }
 
@@ -753,6 +766,9 @@ export function createRenderer(canvas, refs, state) {
   }
 
   function frame(dt) {
+    if (viewW !== window.innerWidth || viewH !== window.innerHeight) {
+      resize();
+    }
     updateCamera(dt);
     ctx.clearRect(0, 0, viewW, viewH);
     ctx.save();

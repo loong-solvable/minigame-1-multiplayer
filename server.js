@@ -112,19 +112,19 @@ function round2(value) {
   return Math.round(value * 100) / 100;
 }
 
-function randomRoadPos(rng) {
+function randomRoadPos(rng, marginX = 20, marginY = 20) {
   if (rng() < 0.52) {
     const rx = ROADS_X[Math.floor(rng() * ROADS_X.length) % ROADS_X.length];
     return {
-      x: clamp(rx + rand(rng, -ROAD_W * 0.42, ROAD_W * 0.42), 20, WORLD.w - 20),
-      y: rand(rng, 20, WORLD.h - 20)
+      x: clamp(rx + rand(rng, -ROAD_W * 0.42, ROAD_W * 0.42), marginX, WORLD.w - marginX),
+      y: rand(rng, marginY, WORLD.h - marginY)
     };
   }
 
   const ry = ROADS_Y[Math.floor(rng() * ROADS_Y.length) % ROADS_Y.length];
   return {
-    x: rand(rng, 20, WORLD.w - 20),
-    y: clamp(ry + rand(rng, -ROAD_W * 0.42, ROAD_W * 0.42), 20, WORLD.h - 20)
+    x: rand(rng, marginX, WORLD.w - marginX),
+    y: clamp(ry + rand(rng, -ROAD_W * 0.42, ROAD_W * 0.42), marginY, WORLD.h - marginY)
   };
 }
 
@@ -227,6 +227,7 @@ function createRoom(app, code) {
     popups: [],
     eventBanner: {
       text: "",
+      subtitle: "",
       color: "#5ce1ff",
       ttlMs: 0,
       flash: 0
@@ -294,9 +295,9 @@ function getCompetitorById(room, id) {
   return null;
 }
 
-function chooseSafeSpawn(room, unit, ignoreId = "") {
+function chooseSafeSpawn(room, unit, ignoreId = "", marginX = 20, marginY = 20) {
   for (let attempt = 0; attempt < 32; attempt++) {
-    const point = randomRoadPos(room.rng);
+    const point = randomRoadPos(room.rng, marginX, marginY);
     let safe = true;
     for (const other of getCompetitors(room)) {
       if (!other.alive || other.id === ignoreId) {
@@ -312,7 +313,7 @@ function chooseSafeSpawn(room, unit, ignoreId = "") {
       return point;
     }
   }
-  return randomRoadPos(room.rng);
+  return randomRoadPos(room.rng, marginX, marginY);
 }
 
 function resetCompetitor(room, unit, mass, invincibleMs) {
@@ -323,7 +324,9 @@ function resetCompetitor(room, unit, mass, invincibleMs) {
   unit.magnetUntil = 0;
   unit.shieldUntil = 0;
   syncSize(unit);
-  const spawn = chooseSafeSpawn(room, unit, unit.id);
+  const spawnPaddingX = unit.isBot ? 20 : 160;
+  const spawnPaddingY = unit.isBot ? 20 : 220;
+  const spawn = chooseSafeSpawn(room, unit, unit.id, spawnPaddingX, spawnPaddingY);
   unit.x = spawn.x;
   unit.y = spawn.y;
   unit.tx = spawn.x;
@@ -406,8 +409,9 @@ function createControlPoints(room) {
   }));
 }
 
-function triggerBanner(room, text, color = "#5ce1ff", ttlMs = 3200, flash = 0.34) {
+function triggerBanner(room, text, color = "#5ce1ff", ttlMs = 3200, flash = 0.34, subtitle = "") {
   room.eventBanner.text = text;
+  room.eventBanner.subtitle = subtitle;
   room.eventBanner.color = color;
   room.eventBanner.ttlMs = Math.max(room.eventBanner.ttlMs, ttlMs);
   room.eventBanner.flash = Math.max(room.eventBanner.flash, flash);
@@ -485,6 +489,7 @@ function initializeMatch(room) {
   room.popups = [];
   room.eventBanner = {
     text: "",
+    subtitle: "",
     color: "#5ce1ff",
     ttlMs: 0,
     flash: 0
@@ -516,7 +521,7 @@ function initializeMatch(room) {
     spawnPickup(room, PICKUP_TYPES[i % PICKUP_TYPES.length]);
   }
 
-  triggerBanner(room, "MATCH START", "#5ce1ff", 2800, 0.45);
+  triggerBanner(room, "MATCH START", "#5ce1ff", 2000, 0.12);
   broadcastRoom(room, buildRoomState(room));
   broadcastSnapshots(room);
 }
@@ -582,15 +587,15 @@ function applyPickup(room, unit, type, now) {
   if (type === "speed") {
     unit.speedUntil = Math.max(unit.speedUntil, now + 12000);
     addPopup(room, unit.x, unit.y, "Speed x1.78", "#ffd44d", 2200, 30, 900);
-    triggerBanner(room, "SPEED BOOST", "#ffd44d", 3000, 0.32);
+    triggerBanner(room, "SPEED BOOST", "#ffd44d", 2600, 0.24, "移动速度提升");
   } else if (type === "magnet") {
     unit.magnetUntil = Math.max(unit.magnetUntil, now + 14000);
     addPopup(room, unit.x, unit.y, "Magnet x1.90", "#67ddff", 2200, 30, 900);
-    triggerBanner(room, "MEGA MAGNET", "#67ddff", 3000, 0.32);
+    triggerBanner(room, "MEGA MAGNET", "#67ddff", 2600, 0.24, "吸附范围扩大");
   } else if (type === "shield") {
     unit.shieldUntil = Math.max(unit.shieldUntil, now + 24000);
     addPopup(room, unit.x, unit.y, "Shield Ready", "#9ef3ff", 2300, 32, 900);
-    triggerBanner(room, "SHIELD ON", "#9ef3ff", 3200, 0.35);
+    triggerBanner(room, "SHIELD ON", "#9ef3ff", 2800, 0.26, "可抵挡下一次伤害");
   }
   if (!unit.isBot) {
     unit.score += 26;
@@ -781,7 +786,7 @@ function updateControlPoints(room, dt, now) {
     if (prevOwnerId !== controlPoint.ownerId && controlPoint.ownerId) {
       const owner = getCompetitorById(room, controlPoint.ownerId);
       addPopup(room, controlPoint.x, controlPoint.y - controlPoint.r - 24, "OUTPOST ONLINE", "#67ddff", 2200, 34, 900);
-      triggerBanner(room, "OUTPOST CAPTURED", "#67ddff", 3600, 0.34);
+      triggerBanner(room, "OUTPOST CAPTURED", "#67ddff", 3000, 0.24, "支援炮台已上线");
       if (owner && !owner.isBot) {
         owner.score += 18;
       }
@@ -1143,6 +1148,7 @@ function broadcastSnapshots(room) {
     })),
     eventBanner: {
       text: room.eventBanner.text,
+      subtitle: room.eventBanner.subtitle,
       color: room.eventBanner.color,
       ttlMs: Math.max(0, Math.floor(room.eventBanner.ttlMs)),
       flash: round2(room.eventBanner.flash)

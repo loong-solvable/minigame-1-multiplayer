@@ -65,7 +65,7 @@ const state = {
   controlPoints: [],
   turretShots: [],
   popups: [],
-  eventBanner: { text: "", color: "#5ce1ff", ttlMs: 0, flash: 0 },
+  eventBanner: { text: "", subtitle: "", color: "#5ce1ff", ttlMs: 0, flash: 0 },
   assetsLoaded: false,
   assetLoadProgress: 0,
   hasSnapshot: false,
@@ -418,7 +418,7 @@ function resetClientState() {
   state.controlPoints = [];
   state.turretShots = [];
   state.popups = [];
-  state.eventBanner = { text: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
+  state.eventBanner = { text: "", subtitle: "", color: "#5ce1ff", ttlMs: 0, flash: 0 };
   state.hasSnapshot = false;
   state.loadingProgress = 0;
   state.runningStartedAt = 0;
@@ -546,6 +546,7 @@ function applySnapshot(snapshot) {
   state.popups = (snapshot.popups || []).map((popup) => ({ ...popup }));
   state.eventBanner = {
     text: snapshot.eventBanner?.text || "",
+    subtitle: snapshot.eventBanner?.subtitle || "",
     color: snapshot.eventBanner?.color || "#5ce1ff",
     ttlMs: Math.max(0, snapshot.eventBanner?.ttlMs || 0),
     flash: Math.max(0, snapshot.eventBanner?.flash || 0)
@@ -928,7 +929,6 @@ renderer.resize();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
 
 
 
