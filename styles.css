@@ -141,7 +141,7 @@ input {
 
 .boardEntry {
   display: grid;
-  grid-template-columns: 14px minmax(0, 1fr) 30px;
+  grid-template-columns: 14px minmax(0, 1fr) 36px;
   align-items: center;
   gap: 4px;
   min-width: 0;
@@ -168,11 +168,12 @@ input {
 }
 
 .boardScore {
-  min-width: 30px;
+  min-width: 36px;
   text-align: right;
   font-weight: 800;
   color: var(--good);
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
 }
 
 #hint {

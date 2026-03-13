@@ -79,6 +79,8 @@ const state = {
   pointerActive: false,
   pointerId: null,
   backTrapArmed: false,
+  nativeBackHandlerReady: false,
+  nativeBackHandlerPending: false,
   orientationLock: "",
   lastInputSentAt: 0,
   visualPlayers: new Map(),
@@ -196,6 +198,10 @@ function getScreenOrientationPlugin() {
   return window.Capacitor?.Plugins?.ScreenOrientation || null;
 }
 
+function getAppPlugin() {
+  return window.Capacitor?.Plugins?.App || null;
+}
+
 function getDesiredOrientationLock() {
   return state.phase === "running" || state.phase === "finished" ? "landscape" : "portrait";
 }
@@ -242,6 +248,45 @@ function handleAppBackAttempt() {
   return true;
 }
 
+function installNativeBackHandler() {
+  if (!isNativeShell() || state.nativeBackHandlerReady || state.nativeBackHandlerPending) return;
+  const appPlugin = getAppPlugin();
+  if (!appPlugin?.addListener) return;
+
+  const onBackButton = () => {
+    if (!refs.backConfirmOverlay?.classList.contains("hidden")) {
+      hideBackConfirm();
+      return;
+    }
+    if (handleAppBackAttempt()) {
+      return;
+    }
+    if (appPlugin.exitApp) {
+      appPlugin.exitApp();
+    }
+  };
+
+  try {
+    state.nativeBackHandlerPending = true;
+    const listener = appPlugin.addListener("backButton", onBackButton);
+    if (listener && typeof listener.then === "function") {
+      listener.then(() => {
+        state.nativeBackHandlerReady = true;
+        state.nativeBackHandlerPending = false;
+      }).catch(() => {
+        state.nativeBackHandlerReady = false;
+        state.nativeBackHandlerPending = false;
+      });
+      return;
+    }
+    state.nativeBackHandlerReady = true;
+    state.nativeBackHandlerPending = false;
+  } catch {
+    state.nativeBackHandlerReady = false;
+    state.nativeBackHandlerPending = false;
+  }
+}
+
 function disconnectSocketForMenuReturn() {
   clearConnectTimeout();
   const socket = state.socket;
@@ -271,6 +316,7 @@ function disconnectSocketForMenuReturn() {
 function returnToMainPage() {
   hideBackConfirm();
   disconnectSocketForMenuReturn();
+  state.backTrapArmed = false;
   resetClientState();
   setConnectionStatus("idle", "");
   setMenuError("");
@@ -682,6 +728,7 @@ function updateOverlays() {
   const isHost = !!state.playerId && state.playerId === state.hostId;
   const hostPlayer = state.roomPlayers.find((player) => player.id === state.hostId);
 
+  installNativeBackHandler();
   refs.menuOverlay.classList.toggle("hidden", isRunning);
   refs.landingSection.classList.toggle("hidden", inRoom);
   refs.roomSection.classList.toggle("hidden", !inRoom);
@@ -926,12 +973,10 @@ window.setInterval(() => {
 }, 50);
 
 renderer.resize();
+installNativeBackHandler();
 updateOverlays();
 updateLoadingOverlay();
 requestAnimationFrame(loop);
-
-
-
 
 
 

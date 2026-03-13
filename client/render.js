@@ -718,19 +718,41 @@ export function createRenderer(canvas, refs, state) {
         `</div>`;
     }
 
-    const topRows = state.ranking.slice(0, gameplayMinimal ? 4 : 5);
-    const selfRow = state.ranking.find((row) => row.id === state.playerId);
-    const boardRows = selfRow && !topRows.some((row) => row.id === selfRow.id)
-      ? [...topRows, selfRow]
-      : topRows;
+    const boardLimit = gameplayMinimal ? 8 : 5;
+    const selfRow = state.ranking.find((row) => row.id === state.playerId) || null;
+    const prioritizedRows = gameplayMinimal
+      ? [
+          ...state.ranking.filter((row) => !row.isBot),
+          ...state.ranking.filter((row) => row.isBot)
+        ]
+      : state.ranking;
+    const seenRows = new Set();
+    const boardRows = [];
+
+    for (const row of prioritizedRows) {
+      if (seenRows.has(row.id)) continue;
+      boardRows.push(row);
+      seenRows.add(row.id);
+      if (boardRows.length >= boardLimit) break;
+    }
+
+    if (selfRow && !seenRows.has(selfRow.id)) {
+      if (boardRows.length >= boardLimit) {
+        boardRows[boardRows.length - 1] = selfRow;
+      } else {
+        boardRows.push(selfRow);
+      }
+    }
 
     refs.boardEl.innerHTML = boardRows.map((row) => {
       const rank = state.ranking.findIndex((entry) => entry.id === row.id) + 1;
       const score = Number(row.score ?? 0);
+      const isSelf = row.id === state.playerId;
+      const roleSuffix = row.isBot ? " · BOT" : isSelf ? " · 你" : "";
       return `
-        <div class="boardEntry${row.id === state.playerId ? " boardEntrySelf" : ""}">
+        <div class="boardEntry${isSelf ? " boardEntrySelf" : ""}">
           <span class="boardRank">${rank}</span>
-          <span class="boardName">${row.name}${row.isBot ? " [BOT]" : ""}${row.id === state.playerId ? " · 你" : ""}</span>
+          <span class="boardName">${row.name}${roleSuffix}</span>
           <span class="boardScore">${score}</span>
         </div>
       `;
